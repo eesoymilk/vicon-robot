@@ -5,7 +5,7 @@ import pandas as pd
 SCRIPT_DIR = Path(__file__).resolve().parent
 
 
-def read_session_csv(file_path: Path) -> pd.DataFrame:
+def read_trial_csv(file_path: Path) -> pd.DataFrame:
     """Read a session CSV file and return a DataFrame with MultiIndex columns.
     The session CSV file is expected to have the following structure:
     - The first two rows are ignored
@@ -47,7 +47,7 @@ def read_session_csv(file_path: Path) -> pd.DataFrame:
 
 
 def main() -> None:
-    df = read_session_csv(SCRIPT_DIR / "session.csv")
+    df = read_trial_csv(SCRIPT_DIR / "trial.csv")
 
     ref_marker = "ArmJoint6:ToEnd2"
     for axis in ("X", "Y", "Z"):
