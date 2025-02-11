@@ -1,4 +1,5 @@
 import pandas as pd
+from vicon_stream import vicon_init, get_vicon_subject_info
 from utils.aubo_robot.robot_control import *
 
 init_pose = (0.410444, 0.080962, 0.547597)
@@ -61,20 +62,9 @@ def main():
     # 打印上下文
     logger.info("robot.rshd={0}".format(handle))
 
+    vicon_client = vicon_init()
+
     try:
-        # time.sleep(0.2)
-        # process_get_robot_current_status = GetRobotWaypointProcess()
-        # process_get_robot_current_status.daemon = True
-        # process_get_robot_current_status.start()
-        # time.sleep(0.2)
-
-        queue = Queue()
-
-        p = Process(target=runWaypoint, args=(queue,))
-        p.start()
-        time.sleep(5)
-        print("process started.")
-
         # 链接服务器
         # ip = 'localhost'
         ip = "192.168.0.246"
@@ -86,7 +76,6 @@ def main():
         else:
             robot.enable_robot_event()
             robot.init_profile()
-            # joint_maxvelc = (2.596177, 2.596177, 2.596177, 3.110177, 3.110177, 3.110177)
             joint_maxvelc = (20, 20, 20, 20, 20, 20)
             joint_maxacc = (
                 17.308779 / 2.5,
@@ -96,41 +85,17 @@ def main():
                 17.308779 / 2.5,
                 17.308779 / 2.5,
             )
-            # joint_maxvelc = (0.596177, 0.596177, 0.596177, 1.110177, 1.110177, 1.110177)
-            # joint_maxacc = (1.308779/2.5, 1.308779/2.5, 1.308779/2.5, 1.308779/2.5, 1.308779/2.5, 1.308779/2.5)
             robot.set_joint_maxacc(joint_maxacc)
             robot.set_joint_maxvelc(joint_maxvelc)
             # robot.set_arrival_ahead_time(0.5)
             # robot.set_arrival_ahead_blend(0.05) # try arrival ahead time (0.5)
 
-            for x, y, z in list(get_hand_tracking_coords()):
-                print(f"moving to ({x}, {y}, {z})")
+            while True:
+                vicon_client.GetFrame()
+                hand_markers = get_vicon_subject_info(vicon_client, "Hand")
                 robot.move_to_target_in_cartesian(
-                    (x, y, z), (179.99847, -0.000170, 84.27533)
+                    hand_markers["center"][0], (180, 0, -90)
                 )
-            robot.disconnect()
-
-            # while True:
-            #     joint_radian = (0.541678, 0.225068, -0.948709, 0.397018, -1.570800, 0.541673)
-            #     robot.move_joint(joint_radian, True)
-
-            #     joint_radian = (55.5/180.0*pi, -20.5/180.0*pi, -72.5/180.0*pi, 38.5/180.0*pi, -90.5/180.0*pi, 55.5/180.0*pi)
-            #     robot.move_joint(joint_radian, True)
-
-            #     joint_radian = (0, 0, 0, 0, 0, 0)
-            #     robot.move_joint(joint_radian, True)
-
-            #     print("-----------------------------")
-
-            #     queue.put(joint_radian)
-
-            #     # time.sleep(5)
-
-            #     # process_get_robot_current_status.test()
-
-            #     # print("-----------------------------")
-
-            #     # 断开服务器链接
 
     except KeyboardInterrupt:
         robot.move_stop()
