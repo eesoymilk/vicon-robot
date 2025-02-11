@@ -4,6 +4,7 @@ from utils.aubo_robot.robot_control import *
 init_pose = (0.410444, 0.080962, 0.547597)
 init_rot = (179.99847, -0.000170, 84.27533)
 
+
 def get_hand_df() -> pd.DataFrame:
     df = pd.read_csv("hand_cal.csv", header=None)
 
@@ -31,11 +32,13 @@ def get_hand_tracking_coords():
     # )
 
     for index_row in df[hand_ref_marker].iterrows():
-        print(f'Delta: ({    index_row[1]["X"] - df[hand_ref_marker]["X"][0]}, {    index_row[1]["Y"] - df[hand_ref_marker]["Y"][0]}, {    index_row[1]["Z"] - df[hand_ref_marker]["Z"][0]})')
+        print(
+            f"Delta: ({index_row[1]['X'] - df[hand_ref_marker]['X'][0]}, {index_row[1]['Y'] - df[hand_ref_marker]['Y'][0]}, {index_row[1]['Z'] - df[hand_ref_marker]['Z'][0]})"
+        )
         yield (
             (index_row[1]["X"] - df[hand_ref_marker]["X"][0]) / 1000 + init_pose[0],
             (index_row[1]["Y"] - df[hand_ref_marker]["Y"][0]) / 1000 + init_pose[1],
-            (index_row[1]["Z"] - df[hand_ref_marker]["Z"][0]) / 1000 + init_pose[2]
+            (index_row[1]["Z"] - df[hand_ref_marker]["Z"][0]) / 1000 + init_pose[2],
         )
 
 
@@ -59,7 +62,6 @@ def main():
     logger.info("robot.rshd={0}".format(handle))
 
     try:
-
         # time.sleep(0.2)
         # process_get_robot_current_status = GetRobotWaypointProcess()
         # process_get_robot_current_status.daemon = True
@@ -74,8 +76,8 @@ def main():
         print("process started.")
 
         # 链接服务器
-        #ip = 'localhost'
-        ip = '192.168.0.246'
+        # ip = 'localhost'
+        ip = "192.168.0.246"
         port = 8899
         result = robot.connect(ip, port)
 
@@ -86,7 +88,14 @@ def main():
             robot.init_profile()
             # joint_maxvelc = (2.596177, 2.596177, 2.596177, 3.110177, 3.110177, 3.110177)
             joint_maxvelc = (20, 20, 20, 20, 20, 20)
-            joint_maxacc = (17.308779/2.5, 17.308779/2.5, 17.308779/2.5, 17.308779/2.5, 17.308779/2.5, 17.308779/2.5)
+            joint_maxacc = (
+                17.308779 / 2.5,
+                17.308779 / 2.5,
+                17.308779 / 2.5,
+                17.308779 / 2.5,
+                17.308779 / 2.5,
+                17.308779 / 2.5,
+            )
             # joint_maxvelc = (0.596177, 0.596177, 0.596177, 1.110177, 1.110177, 1.110177)
             # joint_maxacc = (1.308779/2.5, 1.308779/2.5, 1.308779/2.5, 1.308779/2.5, 1.308779/2.5, 1.308779/2.5)
             robot.set_joint_maxacc(joint_maxacc)
@@ -96,13 +105,14 @@ def main():
 
             for x, y, z in list(get_hand_tracking_coords()):
                 print(f"moving to ({x}, {y}, {z})")
-                robot.move_to_target_in_cartesian((x, y, z), (179.99847, -0.000170, 84.27533))
+                robot.move_to_target_in_cartesian(
+                    (x, y, z), (179.99847, -0.000170, 84.27533)
+                )
             robot.disconnect()
 
             # while True:
             #     joint_radian = (0.541678, 0.225068, -0.948709, 0.397018, -1.570800, 0.541673)
             #     robot.move_joint(joint_radian, True)
-
 
             #     joint_radian = (55.5/180.0*pi, -20.5/180.0*pi, -72.5/180.0*pi, 38.5/180.0*pi, -90.5/180.0*pi, 55.5/180.0*pi)
             #     robot.move_joint(joint_radian, True)
@@ -127,8 +137,6 @@ def main():
 
     except RobotError as e:
         logger.error("robot Event:{0}".format(e))
-
-
 
     # 断开服务器链接
     if robot.connected:
