@@ -870,6 +870,9 @@ class Auboi5Robot:
 
             logging.info("ik_result====>{0}".format(ik_result))
 
+            if ik_result is None:
+                return False
+
             # 轴动到目标位置
             result = libpyauboi5.move_joint(self.rshd, ik_result["joint"])
             if result != RobotErrorType.RobotError_SUCC:

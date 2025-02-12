@@ -1,6 +1,5 @@
 import sys
 import argparse
-from __future__ import print_function
 from vicon_dssdk import ViconDataStream
 
 
@@ -136,10 +135,11 @@ def vicon_init():
         except ViconDataStream.DataStreamException as e:
             print("Failed to configure wireless", e)
 
-        return client
 
     except ViconDataStream.DataStreamException as e:
         print("Handled data stream error", e)
+
+    return client
 
 
 def get_vicon_subject_markers(client, subjectName):
@@ -154,6 +154,7 @@ def get_vicon_subject_markers(client, subjectName):
 
 
 def main():
+    return
     client = vicon_init()
 
     while True:
