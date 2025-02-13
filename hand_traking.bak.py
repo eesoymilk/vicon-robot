@@ -2,7 +2,7 @@ import logging
 
 import numpy as np
 from vicon_client import ViconClient
-from utils.aubo_robot.robot_control import (
+from aubo_robot.robot_control import (
     Auboi5Robot,
     RobotError,
     RobotErrorType,
