@@ -7,6 +7,7 @@ from aubo_robot.robot_control import (
     Auboi5Robot,
     RobotError,
     RobotErrorType,
+    RobotStatus,
     logger_init,
 )
 
@@ -74,6 +75,10 @@ class RobotController:
             try:
                 # Retrieve the latest target position
                 target = self.vicon_queue.get(timeout=1)
+
+                if self.robot.get_robot_state() == RobotStatus.Running:
+                    print(f"Robot is running, skipping target {target}")
+                    continue
 
                 print(f"Moving to {target}")
                 delta = target - np.array(self.robot_init_pose)
