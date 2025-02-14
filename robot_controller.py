@@ -1,3 +1,4 @@
+import time
 import queue
 import logging
 import threading
@@ -27,6 +28,7 @@ class RobotController:
         self.vicon_queue = queue.Queue()
         self.vicon_client = ViconClient()
         self.robot = Auboi5Robot()
+        self.running = False
 
     def initialize_robot(self):
         """Initialize and connect to the robot arm."""
@@ -56,7 +58,7 @@ class RobotController:
 
     def vicon_reader(self):
         """Thread function to read Vicon coordinates and push them into the queue."""
-        while True:
+        while self.running:
             self.vicon_client.get_frame()
             hand_markers = self.vicon_client.get_vicon_subject_markers("Hand")
 
@@ -71,7 +73,7 @@ class RobotController:
 
     def robot_mover(self):
         """Thread function to retrieve targets from queue and move the robot."""
-        while True:
+        while self.running:
             try:
                 # Retrieve the latest target position
                 target = self.vicon_queue.get(timeout=1)
@@ -92,6 +94,7 @@ class RobotController:
     def start(self):
         """Start the Vicon reading and robot movement threads."""
         try:
+            self.running = True
             self.initialize_robot()
 
             vicon_thread = threading.Thread(target=self.vicon_reader, daemon=True)
@@ -100,17 +103,22 @@ class RobotController:
             vicon_thread.start()
             robot_thread.start()
 
-            # Keep the main thread alive
-            vicon_thread.join()
-            robot_thread.join()
+            while self.running:
+                time.sleep(0.1)
 
         except KeyboardInterrupt:
             logger.info("Stopping robot...")
-            self.robot.move_stop()
-
+            self.stop()
         except RobotError as e:
             logger.error(f"Robot Event: {e}")
+            self.stop()
+        finally:
+            self.stop()
 
+    def stop(self):
+        """Stop the robot controller."""
+        self.running = False
+        self.robot.move_stop()
         if self.robot.connected:
             self.robot.disconnect()
         Auboi5Robot.uninitialize()
