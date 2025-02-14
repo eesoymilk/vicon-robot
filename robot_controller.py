@@ -1,8 +1,10 @@
+import math
 import time
 import queue
 import logging
 import threading
 import numpy as np
+import libpyauboi5
 from vicon_client import ViconClient
 from aubo_robot.robot_control import (
     Auboi5Robot,
@@ -25,11 +27,16 @@ class RobotController:
 
     def __init__(self):
         """Initialize the robot controller with Vicon and robot interfaces."""
-        # logger_init()
+        logger_init()
         self.vicon_queue = queue.Queue()
         self.vicon_client = ViconClient()
         self.robot = Auboi5Robot()
         self.running = False
+        self.robot_moving = False
+
+    @property
+    def robot_running(self):
+        return self.robot.get_robot_state() == RobotStatus.Running
 
     def initialize_robot(self):
         """Initialize and connect to the robot arm."""
@@ -60,7 +67,6 @@ class RobotController:
         )
 
         base_found = False
-
         while not base_found:
             self.vicon_client.get_frame()
             base_markers = self.vicon_client.get_vicon_subject_markers("Base")
@@ -81,12 +87,27 @@ class RobotController:
             print(f"\n\nRobot base: {self.robot_base}\n")
             base_found = True
 
+    def get_ik_result(self, pos, rpy_xyz):
+        rpy_xyz = [i / 180.0 * pi for i in rpy_xyz]
+        # 欧拉角转四元数
+        ori = libpyauboi5.rpy_to_quaternion(self.rshd, rpy_xyz)
+
+        # 逆运算得关节角
+        joint_radian = libpyauboi5.get_current_waypoint(self.rshd)
+
+        ik_result = libpyauboi5.inverse_kin(self.rshd, joint_radian['joint'], pos, ori)
+
+        logging.info("ik_result====>{0}".format(ik_result))
+
     def vicon_reader(self):
         """Thread function to read Vicon coordinates and push them into the queue."""
         while self.running:
+            if self.robot_moving:
+                print("\n\n\nRobot is running, skipping points\n\n")
+                continue
+
             self.vicon_client.get_frame()
             hand_markers = self.vicon_client.get_vicon_subject_markers("Hand")
-
             hand_center = np.array(hand_markers["Center"][0])
 
             if np.all(hand_center == 0):
@@ -104,15 +125,14 @@ class RobotController:
                 # Retrieve the latest target position
                 target = self.vicon_queue.get(timeout=1)
 
-                if self.robot.get_robot_state() == RobotStatus.Running:
-                    print(f"\n\n\n\n\n\n\n[[[****Robot is running, skipping target {target}****]]]\n\n\n\n\n\n\n")
-                    continue
+                result = self.robot.move_to_target_in_cartesian(target, self.robot_init_rot)
 
-                print(f"\n\n\n\n\n\n\nMoving to {target}")
-                delta = target - np.array(self.robot_init_pose)
-                print(f"Delta {delta}\n\n\n\n\n\n")
+                print(f"queue length: {self.vicon_queue.qsize()}")
 
-                self.robot.move_to_target_in_cartesian(target, self.robot_init_rot)
+                if result == RobotErrorType.RobotError_SUCC:
+                    print(f"\n\n\n\n\n\n\nMoving to {target}")
+                    delta = target - np.array(self.robot_init_pose)
+                    print(f"Delta {delta}\n\n\n\n\n\n")
 
             except queue.Empty:
                 continue  # Keep checking for new positions
@@ -130,6 +150,7 @@ class RobotController:
             robot_thread.start()
 
             while self.running:
+                print(f"Robot State: {self.robot.get_robot_state()}")
                 time.sleep(0.1)
 
         except KeyboardInterrupt:
