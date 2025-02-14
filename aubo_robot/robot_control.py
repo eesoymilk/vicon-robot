@@ -46,13 +46,13 @@ def logger_init():
     fh.setFormatter(formatter)
 
     # 控制台输出设定格式
-    ch.setFormatter(formatter)
+    # ch.setFormatter(formatter)
 
     # 设置文件输出到logger
     logger.addHandler(fh)
 
     # 设置控制台输出到logger
-    logger.addHandler(ch)
+    # logger.addHandler(ch)
 
 
 class RobotEventType:

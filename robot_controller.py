@@ -111,11 +111,10 @@ class RobotController:
         except RobotError as e:
             logger.error(f"Robot Event: {e}")
 
-        finally:
-            if self.robot.connected:
-                self.robot.disconnect()
-            Auboi5Robot.uninitialize()
-            print("------------------------Run end-------------------------")
+        if self.robot.connected:
+            self.robot.disconnect()
+        Auboi5Robot.uninitialize()
+        print("------------------------Run end-------------------------")
 
 
 if __name__ == "__main__":

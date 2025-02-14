@@ -8,7 +8,7 @@ class ViconClient:
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super("ViconClient", cls).__new__(cls)
+            cls._instance = super(ViconClient, cls).__new__(cls)
             cls._instance._client = ViconDataStream.Client()
             cls._instance.initialize()
         return cls._instance
@@ -62,14 +62,14 @@ class ViconClient:
 
             # Try setting the different stream modes
             self.client.SetStreamMode(
-                ViconDataStream.self.Client.StreamMode.Eself.ClientPull
+                ViconDataStream.Client.StreamMode.EClientPull
             )
             print(
-                "Get Frame Pull", self.client.GetFrame(), self.client.GetFrameNumber()
+                f"Get Frame Pull {self.client.GetFrame()} {self.client.GetFrameNumber()}"
             )
 
             self.client.SetStreamMode(
-                ViconDataStream.self.Client.StreamMode.Eself.ClientPullPreFetch
+                ViconDataStream.Client.StreamMode.EClientPullPreFetch
             )
             print(
                 "Get Frame PreFetch",
@@ -78,7 +78,7 @@ class ViconClient:
             )
 
             self.client.SetStreamMode(
-                ViconDataStream.self.Client.StreamMode.EServerPush
+                ViconDataStream.Client.StreamMode.EServerPush
             )
             print(
                 "Get Frame Push", self.client.GetFrame(), self.client.GetFrameNumber()
@@ -136,9 +136,9 @@ class ViconClient:
                 print("No Apex Devices connected")
 
             self.client.SetAxisMapping(
-                ViconDataStream.self.Client.AxisMapping.EForward,
-                ViconDataStream.self.Client.AxisMapping.ELeft,
-                ViconDataStream.self.Client.AxisMapping.EUp,
+                ViconDataStream.Client.AxisMapping.EForward,
+                ViconDataStream.Client.AxisMapping.ELeft,
+                ViconDataStream.Client.AxisMapping.EUp,
             )
             xAxis, yAxis, zAxis = self.client.GetAxisMapping()
             print("X Axis", xAxis, "Y Axis", yAxis, "Z Axis", zAxis)
