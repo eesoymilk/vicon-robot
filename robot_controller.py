@@ -18,13 +18,14 @@ logger = logging.getLogger("main.robot_controller")
 
 class RobotController:
     robot_init_pose = (0.410444, 0.080962, 0.547597)
+    robot_init_pose_np = np.array(robot_init_pose)
     robot_init_rot = (179.99847, -0.000170, 84.27533)
     robot_ip = "192.168.0.246"
     robot_port = 8899
 
     def __init__(self):
         """Initialize the robot controller with Vicon and robot interfaces."""
-        logger_init()
+        # logger_init()
         self.vicon_queue = queue.Queue()
         self.vicon_client = ViconClient()
         self.robot = Auboi5Robot()
@@ -47,14 +48,38 @@ class RobotController:
         self.robot.init_profile()
 
         joint_maxvelc = (20, 20, 20, 20, 20, 20)
-        joint_maxacc = tuple(17.308779 / 2.5 for _ in range(6))
+        joint_maxacc = tuple([17.308779 / 2.5 for _ in range(6)])
         self.robot.set_joint_maxacc(joint_maxacc)
         self.robot.set_joint_maxvelc(joint_maxvelc)
+        # self.robot.set_arrival_ahead_time(0.5)
+        # self.robot.set_arrival_ahead_blend(0.05) # try arrival ahead time (0.5)
 
         # Move robot to initial position
         self.robot.move_to_target_in_cartesian(
             self.robot_init_pose, self.robot_init_rot
         )
+
+        base_found = False
+
+        while not base_found:
+            self.vicon_client.get_frame()
+            base_markers = self.vicon_client.get_vicon_subject_markers("Base")
+
+            if all([coord == 0 for coord in base_markers["XYPlane1"][0]]):
+                continue
+
+            robot_base_xy1 = np.array(base_markers["XYPlane1"][0])
+            robot_base_xy2 = np.array(base_markers["XYPlane2"][0])
+            robot_base_xy3 = np.array(base_markers["XYPlane3"][0])
+            robot_base_xy4 = np.array(base_markers["XYPlane4"][0])
+
+            self.robot_base = (
+                robot_base_xy1 + robot_base_xy2 + robot_base_xy3 + robot_base_xy4
+            ) / 4
+            self.robot_base[2] = base_markers["Zbase"][0][2]
+
+            print(f"\n\nRobot base: {self.robot_base}\n")
+            base_found = True
 
     def vicon_reader(self):
         """Thread function to read Vicon coordinates and push them into the queue."""
@@ -62,12 +87,13 @@ class RobotController:
             self.vicon_client.get_frame()
             hand_markers = self.vicon_client.get_vicon_subject_markers("Hand")
 
-            # Get the center marker and convert to meters
-            target = np.array(hand_markers["Center"][0]) / 1000
+            hand_center = np.array(hand_markers["Center"][0])
 
-            # Ignore invalid target positions
-            if np.all(target == 0):
+            if np.all(hand_center == 0):
                 continue
+
+            # Get the center marker and convert to meters
+            target = (hand_center - self.robot_base) / 1000
 
             self.vicon_queue.put(target)
 
@@ -79,12 +105,12 @@ class RobotController:
                 target = self.vicon_queue.get(timeout=1)
 
                 if self.robot.get_robot_state() == RobotStatus.Running:
-                    print(f"Robot is running, skipping target {target}")
+                    print(f"\n\n\n\n\n\n\n[[[****Robot is running, skipping target {target}****]]]\n\n\n\n\n\n\n")
                     continue
 
-                print(f"Moving to {target}")
+                print(f"\n\n\n\n\n\n\nMoving to {target}")
                 delta = target - np.array(self.robot_init_pose)
-                print(f"Delta {delta}")
+                print(f"Delta {delta}\n\n\n\n\n\n")
 
                 self.robot.move_to_target_in_cartesian(target, self.robot_init_rot)
 
@@ -111,6 +137,9 @@ class RobotController:
             self.stop()
         except RobotError as e:
             logger.error(f"Robot Event: {e}")
+            self.stop()
+        except ValueError as e:
+            logger.error(f"{e}")
             self.stop()
         finally:
             self.stop()
