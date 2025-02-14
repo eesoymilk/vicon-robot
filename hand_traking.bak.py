@@ -1,8 +1,8 @@
 import logging
 
 import numpy as np
-from vicon_client import ViconClient
-from aubo_robot.robot_control import (
+from vicon.vicon_client import ViconClient
+from aubo_robot.auboi5_robot import (
     Auboi5Robot,
     RobotError,
     RobotErrorType,
