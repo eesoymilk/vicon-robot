@@ -4,9 +4,8 @@ import queue
 import logging
 import threading
 import numpy as np
-import libpyauboi5
-from vicon_client import ViconClient
-from aubo_robot.robot_control import (
+from vicon.vicon_client import ViconClient
+from aubo_robot.auboi5_robot import (
     Auboi5Robot,
     RobotError,
     RobotErrorType,
@@ -15,7 +14,7 @@ from aubo_robot.robot_control import (
 )
 
 
-logger = logging.getLogger("main.robot_controller")
+logger = logging.getLogger("robot_controller")
 
 
 class RobotController:
@@ -31,7 +30,7 @@ class RobotController:
         self.vicon_queue = queue.Queue()
         self.vicon_client = ViconClient()
         self.robot = Auboi5Robot()
-        self.running = False
+        self.controller_running = False
         self.robot_moving = False
 
     @property
@@ -74,34 +73,24 @@ class RobotController:
             if all([coord == 0 for coord in base_markers["XYPlane1"][0]]):
                 continue
 
-            robot_base_xy1 = np.array(base_markers["XYPlane1"][0])
-            robot_base_xy2 = np.array(base_markers["XYPlane2"][0])
-            robot_base_xy3 = np.array(base_markers["XYPlane3"][0])
-            robot_base_xy4 = np.array(base_markers["XYPlane4"][0])
-
-            self.robot_base = (
-                robot_base_xy1 + robot_base_xy2 + robot_base_xy3 + robot_base_xy4
-            ) / 4
+            robot_base_planes = [
+                np.array(base_markers[f"XYPlane{i}"][0]) for i in range(1, 5)
+            ]
+            self.robot_base = np.mean(robot_base_planes, axis=0)
             self.robot_base[2] = base_markers["Zbase"][0][2]
 
             print(f"\n\nRobot base: {self.robot_base}\n")
             base_found = True
 
-    def get_ik_result(self, pos, rpy_xyz):
-        rpy_xyz = [i / 180.0 * pi for i in rpy_xyz]
-        # 欧拉角转四元数
-        ori = libpyauboi5.rpy_to_quaternion(self.rshd, rpy_xyz)
-
-        # 逆运算得关节角
-        joint_radian = libpyauboi5.get_current_waypoint(self.rshd)
-
-        ik_result = libpyauboi5.inverse_kin(self.rshd, joint_radian['joint'], pos, ori)
-
-        logging.info("ik_result====>{0}".format(ik_result))
+    def get_ik_result(self, target, rotation):
+        ori = self.robot.rpy_to_quaternion([math.radians(i) for i in rotation])
+        joint_radian = self.robot.get_current_waypoint()
+        ik_result = self.robot.inverse_kin(joint_radian["joint"], target, ori)
+        return ik_result
 
     def vicon_reader(self):
         """Thread function to read Vicon coordinates and push them into the queue."""
-        while self.running:
+        while self.controller_running:
             if self.robot_moving:
                 print("\n\n\nRobot is running, skipping points\n\n")
                 continue
@@ -115,32 +104,30 @@ class RobotController:
 
             # Get the center marker and convert to meters
             target = (hand_center - self.robot_base) / 1000
-
             self.vicon_queue.put(target)
 
     def robot_mover(self):
         """Thread function to retrieve targets from queue and move the robot."""
-        while self.running:
+        while self.controller_running:
             try:
                 # Retrieve the latest target position
                 target = self.vicon_queue.get(timeout=1)
+                ik_result = self.get_ik_result(target, self.robot_init_rot)
 
-                result = self.robot.move_to_target_in_cartesian(target, self.robot_init_rot)
+                if ik_result is None:
+                    continue
 
-                print(f"queue length: {self.vicon_queue.qsize()}")
-
-                if result == RobotErrorType.RobotError_SUCC:
-                    print(f"\n\n\n\n\n\n\nMoving to {target}")
-                    delta = target - np.array(self.robot_init_pose)
-                    print(f"Delta {delta}\n\n\n\n\n\n")
+                self.robot_moving = True
+                self.robot.move_joint(ik_result["joint"])
+                self.robot_moving = False
 
             except queue.Empty:
-                continue  # Keep checking for new positions
+                pass
 
     def start(self):
         """Start the Vicon reading and robot movement threads."""
         try:
-            self.running = True
+            self.controller_running = True
             self.initialize_robot()
 
             vicon_thread = threading.Thread(target=self.vicon_reader, daemon=True)
@@ -149,7 +136,7 @@ class RobotController:
             vicon_thread.start()
             robot_thread.start()
 
-            while self.running:
+            while self.controller_running:
                 print(f"Robot State: {self.robot.get_robot_state()}")
                 time.sleep(0.1)
 
@@ -167,7 +154,7 @@ class RobotController:
 
     def stop(self):
         """Stop the robot controller."""
-        self.running = False
+        self.controller_running = False
         self.robot.move_stop()
         if self.robot.connected:
             self.robot.disconnect()
