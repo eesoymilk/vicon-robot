@@ -14,7 +14,7 @@ from aubo_robot.auboi5_robot import (
 )
 
 
-logger = logging.getLogger("robot_controller")
+logger = logging.getLogger(__name__)
 
 
 class RobotController:
@@ -79,7 +79,7 @@ class RobotController:
             self.robot_base = np.mean(robot_base_planes, axis=0)
             self.robot_base[2] = base_markers["Zbase"][0][2]
 
-            print(f"\n\nRobot base: {self.robot_base}\n")
+            logger.info(f"\n\nRobot base: {self.robot_base}\n")
             base_found = True
 
     def get_ik_result(self, target, rotation):
@@ -92,7 +92,7 @@ class RobotController:
         """Thread function to read Vicon coordinates and push them into the queue."""
         while self.controller_running:
             if self.robot_moving:
-                print("\n\n\nRobot is running, skipping points\n\n")
+                logger.debug("\n\n\nRobot is running, skipping points\n\n")
                 continue
 
             self.vicon_client.get_frame()
@@ -137,7 +137,7 @@ class RobotController:
             robot_thread.start()
 
             while self.controller_running:
-                print(f"Robot State: {self.robot.get_robot_state()}")
+                logger.debug(f"Robot State: {self.robot.get_robot_state()}")
                 time.sleep(0.1)
 
         except KeyboardInterrupt:
@@ -159,7 +159,7 @@ class RobotController:
         if self.robot.connected:
             self.robot.disconnect()
         Auboi5Robot.uninitialize()
-        print("------------------------Run end-------------------------")
+        logger.info("------------------------Run end-------------------------")
 
 
 if __name__ == "__main__":
