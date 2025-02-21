@@ -32,6 +32,8 @@ class RobotController:
         self.robot = Auboi5Robot()
         self.controller_running = False
         self.robot_moving = False
+        self.current_target = None
+        self.robot_base = None
 
     @property
     def robot_running(self):
@@ -65,8 +67,7 @@ class RobotController:
             self.robot_init_pose, self.robot_init_rot
         )
 
-        base_found = False
-        while not base_found:
+        while self.robot_base is None:
             self.vicon_client.get_frame()
             base_markers = self.vicon_client.get_vicon_subject_markers("Base")
 
@@ -80,7 +81,6 @@ class RobotController:
             self.robot_base[2] = base_markers["Zbase"][0][2]
 
             logger.info(f"\n\nRobot base: {self.robot_base}\n")
-            base_found = True
 
     def get_ik_result(self, target, rotation):
         ori = self.robot.rpy_to_quaternion([math.radians(i) for i in rotation])
@@ -111,8 +111,8 @@ class RobotController:
         while self.controller_running:
             try:
                 # Retrieve the latest target position
-                target = self.vicon_queue.get(timeout=1)
-                ik_result = self.get_ik_result(target, self.robot_init_rot)
+                self.current_target = self.vicon_queue.get(timeout=1)
+                ik_result = self.get_ik_result(self.current_target, self.robot_init_rot)
 
                 if ik_result is None:
                     continue
