@@ -15,7 +15,7 @@ from aubo_robot.auboi5_robot import (
 from pyDHgripper import AG95 as Gripper
 
 # gripper = Gripper(port='COM4')
-logger = logging.getLogger("robot_controller")
+logger = logging.getLogger(__name__)
 # gripper_close = False
 
 class RobotController:
@@ -33,6 +33,8 @@ class RobotController:
         self.robot = Auboi5Robot()
         self.controller_running = False
         self.robot_moving = False
+        self.current_target = None
+        self.robot_base = None
 
     @property
     def robot_running(self):
@@ -66,8 +68,7 @@ class RobotController:
             self.robot_init_pose, self.robot_init_rot
         )
 
-        base_found = False
-        while not base_found:
+        while self.robot_base is None:
             self.vicon_client.get_frame()
             base_markers = self.vicon_client.get_vicon_subject_markers("Base")
 
@@ -80,8 +81,7 @@ class RobotController:
             self.robot_base = np.mean(robot_base_planes, axis=0)
             self.robot_base[2] = base_markers["Zbase"][0][2]
 
-            print(f"\n\nRobot base: {self.robot_base}\n")
-            base_found = True
+            logger.info(f"\n\nRobot base: {self.robot_base}\n")
 
     def get_ik_result(self, target, rotation):
         ori = self.robot.rpy_to_quaternion([math.radians(i) for i in rotation])
@@ -93,7 +93,7 @@ class RobotController:
         """Thread function to read Vicon coordinates and push them into the queue."""
         while self.controller_running:
             if self.robot_moving:
-                print("\n\n\nRobot is running, skipping points\n\n")
+                logger.debug("\n\n\nRobot is running, skipping points\n\n")
                 continue
 
             self.vicon_client.get_frame()
@@ -112,8 +112,8 @@ class RobotController:
         while self.controller_running:
             try:
                 # Retrieve the latest target position
-                target = self.vicon_queue.get(timeout=1)
-                ik_result = self.get_ik_result(target, self.robot_init_rot)
+                self.current_target = self.vicon_queue.get(timeout=1)
+                ik_result = self.get_ik_result(self.current_target, self.robot_init_rot)
 
                 if ik_result is None:
                     continue
@@ -138,7 +138,7 @@ class RobotController:
             robot_thread.start()
 
             while self.controller_running:
-                print(f"Robot State: {self.robot.get_robot_state()}")
+                logger.debug(f"Robot State: {self.robot.get_robot_state()}")
                 time.sleep(0.1)
 
         except KeyboardInterrupt:
@@ -181,7 +181,7 @@ class RobotController:
         if self.robot.connected:
             self.robot.disconnect()
         Auboi5Robot.uninitialize()
-        print("------------------------Run end-------------------------")
+        logger.info("------------------------Run end-------------------------")
 
 
 if __name__ == "__main__":
