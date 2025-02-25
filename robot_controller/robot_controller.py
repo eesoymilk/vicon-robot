@@ -24,11 +24,13 @@ class RobotController:
     robot_ip = "192.168.0.246"
     robot_port = 8899
 
-    def __init__(self):
+    def __init__(self, with_vicon=False):
         """Initialize the robot controller with Vicon and robot interfaces."""
         logger_init()
-        self.vicon_queue = queue.Queue()
-        self.vicon_client = ViconClient()
+        self.with_vicon = with_vicon
+        if with_vicon:
+            self.vicon_queue = queue.Queue()
+            self.vicon_client = ViconClient()
         self.robot = Auboi5Robot()
         self.gripper = Gripper(port="COM4")
         self.controller_running = False
@@ -69,7 +71,7 @@ class RobotController:
             self.robot_init_pose, self.robot_init_rot
         )
 
-        while self.robot_base is None:
+        while self.robot_base is None and self.with_vicon:
             self.vicon_client.get_frame()
             base_markers = self.vicon_client.get_vicon_subject_markers("Base")
 
@@ -165,16 +167,17 @@ class RobotController:
 
         self.initialize_robot()
         time.sleep(2)
-        self.gripper.set_pos(20)
+        # self.gripper.set_pos(900)
 
-        time.sleep(0.3)
+        time.sleep(1)
         ik_result = self.get_ik_result(hard_coded_target_pose, hard_coded_target_rot)
         self.robot.move_joint(ik_result["joint"])
-        self.gripper.set_pos(900)
+        self.gripper.set_pos(20)
 
-        time.sleep(0.3)
+        time.sleep(1)
         ik_result = self.get_ik_result(self.robot_init_pose, self.robot_init_rot)
         self.robot.move_joint(ik_result["joint"])
+        self.gripper.set_pos(900)
 
     def stop(self):
         """Stop the robot controller."""
