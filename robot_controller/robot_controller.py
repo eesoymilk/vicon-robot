@@ -12,10 +12,11 @@ from aubo_robot.auboi5_robot import (
     RobotStatus,
     logger_init,
 )
+from pyDHgripper import AG95 as Gripper
 
-
+# gripper = Gripper(port='COM4')
 logger = logging.getLogger("robot_controller")
-
+# gripper_close = False
 
 class RobotController:
     robot_init_pose = (0.410444, 0.080962, 0.547597)
@@ -53,7 +54,7 @@ class RobotController:
         self.robot.enable_robot_event()
         self.robot.init_profile()
 
-        joint_maxvelc = (20, 20, 20, 20, 20, 20)
+        joint_maxvelc = (10, 10, 10, 10, 10, 10)
         joint_maxacc = tuple([17.308779 / 2.5 for _ in range(6)])
         self.robot.set_joint_maxacc(joint_maxacc)
         self.robot.set_joint_maxvelc(joint_maxvelc)
@@ -151,6 +152,27 @@ class RobotController:
             self.stop()
         finally:
             self.stop()
+
+    def hard_coded_grasp(self):
+        self.initialize_robot()
+        # Move robot to initial position
+        self.robot.move_to_target_in_cartesian(
+            self.robot_init_pose, self.robot_init_rot
+        )
+        time.sleep(5)
+        hard_coded_start_pose = (0.596527, 0.047547, 0.27)
+        hard_coded_start_rot = (178, -0.48, 86)
+        hard_coded_target_pose = (0., 0.100962, 0.2)
+        self.robot.move_to_target_in_cartesian(
+            hard_coded_start_pose, hard_coded_start_rot
+        )
+        gripper.set_pos(20)
+        time.sleep(0.3)
+        self.robot.move_to_target_in_cartesian(
+            hard_coded_target_pose, self.robot_init_rot
+        )
+        gripper.set_pos(900)
+        time.sleep(0.3)
 
     def stop(self):
         """Stop the robot controller."""
