@@ -82,7 +82,7 @@ class RobotController:
             self.robot_base = np.mean(robot_base_planes, axis=0)
             self.robot_base[2] = base_markers["Zbase"][0][2]
 
-            logger.info(f"\n\nRobot base: {self.robot_base}\n")
+            logger.info(f"Robot base: {self.robot_base}")
 
     def get_ik_result(self, target, rotation):
         ori = self.robot.rpy_to_quaternion([math.radians(i) for i in rotation])
