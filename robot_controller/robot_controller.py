@@ -14,9 +14,8 @@ from aubo_robot.auboi5_robot import (
 )
 from pyDHgripper import AG95 as Gripper
 
-# gripper = Gripper(port='COM4')
 logger = logging.getLogger(__name__)
-# gripper_close = False
+
 
 class RobotController:
     robot_init_pose = (0.410444, 0.080962, 0.547597)
@@ -31,8 +30,10 @@ class RobotController:
         self.vicon_queue = queue.Queue()
         self.vicon_client = ViconClient()
         self.robot = Auboi5Robot()
+        self.gripper = Gripper(port="COM4")
         self.controller_running = False
         self.robot_moving = False
+        self.gripper_closed = False
         self.current_target = None
         self.robot_base = None
 
@@ -154,25 +155,21 @@ class RobotController:
             self.stop()
 
     def hard_coded_grasp(self):
+        hard_coded_target_pose = (0.596527, 0.047547, 0.27)
+        hard_coded_target_rot = (178, -0.48, 86)
+
         self.initialize_robot()
-        # Move robot to initial position
-        self.robot.move_to_target_in_cartesian(
-            self.robot_init_pose, self.robot_init_rot
-        )
-        time.sleep(5)
-        hard_coded_start_pose = (0.596527, 0.047547, 0.27)
-        hard_coded_start_rot = (178, -0.48, 86)
-        hard_coded_target_pose = (0., 0.100962, 0.2)
-        self.robot.move_to_target_in_cartesian(
-            hard_coded_start_pose, hard_coded_start_rot
-        )
-        gripper.set_pos(20)
+        time.sleep(2)
+        self.gripper.set_pos(20)
+
         time.sleep(0.3)
-        self.robot.move_to_target_in_cartesian(
-            hard_coded_target_pose, self.robot_init_rot
-        )
-        gripper.set_pos(900)
+        ik_result = self.get_ik_result(hard_coded_target_pose, hard_coded_target_rot)
+        self.robot.move_joint(ik_result["joint"])
+        self.gripper.set_pos(900)
+
         time.sleep(0.3)
+        ik_result = self.get_ik_result(self.robot_init_pose, self.robot_init_rot)
+        self.robot.move_joint(ik_result["joint"])
 
     def stop(self):
         """Stop the robot controller."""
