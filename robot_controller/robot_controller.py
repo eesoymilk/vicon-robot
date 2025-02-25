@@ -155,6 +155,11 @@ class RobotController:
             self.stop()
 
     def hard_coded_grasp(self):
+        """
+        Hard coded grasp sequence for testing purposes. It moves the robot to a
+        hard coded target position, closes the gripper, and then moves back to the
+        initial position.
+        """
         hard_coded_target_pose = (0.596527, 0.047547, 0.27)
         hard_coded_target_rot = (178, -0.48, 86)
 
