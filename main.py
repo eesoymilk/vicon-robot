@@ -1,6 +1,10 @@
-import atexit
 import logging
+import logging.config
+from pathlib import Path
 from robot_controller.robot_controller import RobotController
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+LOG_DIR = SCRIPT_DIR / "logs"
 
 logging_config = {
     "version": 1,
@@ -33,18 +37,15 @@ logging_config = {
 
 
 def setup_logging():
+    LOG_DIR.mkdir(exist_ok=True)
     logging.config.dictConfig(logging_config)
-    queue_handler = logging.getHandlerByName("queue_handler")
-    if queue_handler is not None:
-        queue_handler.listener.start()
-        atexit.register(queue_handler.listener.stop)
 
 
 def main() -> None:
     setup_logging()
     controller = RobotController()
-    controller.start()
-    # controller.hard_coded_grasp()
+    # controller.start()
+    controller.hard_coded_grasp()
 
 
 if __name__ == "__main__":
