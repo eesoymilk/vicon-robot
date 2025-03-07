@@ -19,7 +19,7 @@ def prompt_robot_action(
 
     print(f"Prompt: {user_messages[0]}\nResponse:")
     for tool_call in completion.choices[0].message.tool_calls:
-        print(f"\t- {tool_call.function.name}({tool_call.function.arguments})")
+        print(f"  - {tool_call.function.name}({tool_call.function.arguments})")
 
 
 def main() -> None:
@@ -88,6 +88,8 @@ def main() -> None:
         "I am hungry, Can you grab me something to eat?",
         "I want to eat a banana.",
     ]
+
+    print(f"System Message:\n{system_message}")
 
     for prompt in test_prompts:
         prompt_robot_action(
