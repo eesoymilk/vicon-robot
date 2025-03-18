@@ -2,8 +2,10 @@ import logging
 import logging.config
 from pathlib import Path
 import time
+import json
 
 from redis_client import RedisClient
+from .robot_controller import RobotController
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 LOG_DIR = SCRIPT_DIR.parent / "logs"
@@ -46,16 +48,26 @@ def setup_logging():
     logging.config.dictConfig(logging_config)
 
 
-def pubsub_handler(message: dict[str]):
-    if not message:
-        return
-    print(f"Received message: {message}")
-
-
 def main():
     try:
         setup_logging()
         redis_client = RedisClient()
+        robot_controller = RobotController()
+
+        robot_controller.initialize_robot()
+        time.sleep(1)
+
+        def pubsub_handler(message: dict[str]):
+            if not message:
+                return
+            print(f"Received message: {message}")
+            if message["type"] == "message":
+                data = json.loads(message["data"])
+                function_name, pos, rot = data["function"], data["pos"], data["rot"]
+                print(f"Function: {function_name}, Pos: {pos}, Rot: {rot}")
+                if function_name == "grab_object":
+                    robot_controller.grab_object(pos, rot)
+
         # Subscribe to a channel
         channel = "robot_command_channel"
         pubsub = redis_client.subscribe(channel, pubsub_handler)

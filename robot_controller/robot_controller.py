@@ -156,21 +156,18 @@ class RobotController:
         finally:
             self.stop()
 
-    def hard_coded_grasp(self):
+    def grab_object(
+        self,
+        target_pos: tuple[float, float, float] = (0.596527, 0.047547, 0.27),
+        target_rot: tuple[float, float, float] = (178, -0.48, 86),
+    ):
         """
         Hard coded grasp sequence for testing purposes. It moves the robot to a
         hard coded target position, closes the gripper, and then moves back to the
         initial position.
         """
-        hard_coded_target_pose = (0.596527, 0.047547, 0.27)
-        hard_coded_target_rot = (178, -0.48, 86)
-
-        self.initialize_robot()
-        time.sleep(2)
-        # self.gripper.set_pos(900)
-
         time.sleep(1)
-        ik_result = self.get_ik_result(hard_coded_target_pose, hard_coded_target_rot)
+        ik_result = self.get_ik_result(target_pos, target_rot)
         self.robot.move_joint(ik_result["joint"])
         self.gripper.set_pos(20)
 
