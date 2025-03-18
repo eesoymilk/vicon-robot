@@ -1,103 +1,100 @@
 from dotenv import load_dotenv
-from openai import OpenAI
+from pydantic import BaseModel
+from llm_client import LLMClient
+from redis_client import RedisClient
 
 
-def prompt_robot_action(
-    client: OpenAI,
-    system_message: list[str],
-    user_messages: list[str],
-    tools: list[dict],
-) -> None:
-    completion = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": system_message},
-            *[{"role": "user", "content": message} for message in user_messages],
-        ],
-        tools=tools,
-    )
+class ObjectInfo(BaseModel):
+    name: str
+    inrange: bool
 
-    print(f"Prompt: {user_messages[0]}\nResponse:")
-    for tool_call in completion.choices[0].message.tool_calls:
-        print(f"  - {tool_call.function.name}({tool_call.function.arguments})")
+
+class UserInfo(BaseModel):
+    palm_up: bool
+
+
+class ViconInfo(BaseModel):
+    Objects: list[ObjectInfo]
+    User: UserInfo
+
+
+def get_system_message(vicon_info: ViconInfo) -> str:
+    """
+    Dynamically generate a system message string from the given ViconInfo instance.
+    """
+    # Build a snippet that mirrors your original system prompt structure:
+    objects_str = ""
+    for obj in vicon_info.Objects:
+        objects_str += f"""
+    {{
+        name: "{obj.name}",
+        inrange: {str(obj.inrange).lower()},
+    }},"""
+    objects_str = objects_str.strip().rstrip(",")
+
+    user_str = f"{{ palm_up: {str(vicon_info.User.palm_up).lower()} }}"
+
+    system_message = f"""
+    You are a robotic arm assistant. You are tasked with picking up objects
+    and placing them in a specific location. You are to understand the user's
+    needs from a high-level description and execute the necessary actions.
+    You have access to the following information:
+    ```
+    VICON Information:
+    Objects: [{objects_str}]
+    User: {user_str}
+    ```
+    """
+    return system_message
+
+
+vicon_info = {
+    "Objects": [
+        {
+            "name": "apple",
+            "inrange": True,
+        },
+        {
+            "name": "banana",
+            "inrange": False,
+        },
+        {
+            "name": "orange",
+            "inrange": True,
+        },
+    ],
+    "User": {
+        "palm_up": True,
+    },
+}
 
 
 def main() -> None:
     load_dotenv()
-    client = OpenAI()
+    llm_client = LLMClient()
+    redis_client = RedisClient()
 
-    system_message = """
-        You are a robotic arm assistant. You are tasked with picking up objects and placing them in a specific location. You are to understand the user's needs from a high-level description and execute the necessary actions. You have access to the following information:
-        ```
-        VICON Information:
-        Objects: [{
-            name: "apple",
-            inrange: True,
-        },
-        {
-            name: "banana",
-            inrange: False,
-        },
-        {
-            name: "orange",
-            inrange: True,
-        }]
-        User: {
-            palm_up: True,
-        }
-        ```
-    """
+    vicon_info_dict = {
+        "Objects": [
+            {"name": "apple", "inrange": True},
+            {"name": "banana", "inrange": False},
+            {"name": "orange", "inrange": True},
+        ],
+        "User": {"palm_up": True},
+    }
+    vicon_info = ViconInfo(**vicon_info_dict)
+    system_message = get_system_message(vicon_info)
+    user_message = "Grab the apple"
+    function_calls = llm_client.prompt_robot_action(system_message, [user_message])
+    assert function_calls is not None, "Function calls returned None"
 
-    tools = [
-        {
-            "type": "function",
-            "function": {
-                "name": "grab_object",
-                "description": "Grabs the object by its name. You can only grab objects that are in the provide VICON information and you have to make sure it is in range.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "name": {
-                            "type": "string",
-                            "description": "The name of the object to grab.",
-                        }
-                    },
-                    "additionalProperties": False,
-                    "required": ["name"],
-                },
-                "strict": True,
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "noop",
-                "description": "When the desired object is not in range, you should not do anything.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {},
-                    "additionalProperties": False,
-                },
-                "strict": True,
-            },
-        },
-    ]
+    channel = "robot_command_channel"
+    function_call = function_calls[0]
+    print(f"Publishing function call: {function_call}")
 
-    test_prompts = [
-        "I want to eat an apple.",
-        "I am hungry, Can you grab me something to eat?",
-        "I want to eat a banana.",
-    ]
-
-    print(f"System Message:\n{system_message}")
-
-    for prompt in test_prompts:
-        prompt_robot_action(
-            client,
-            system_message,
-            [prompt],
-            tools,
-        )
+    redis_client.publish(
+        channel, f"{function_call.function.name} {function_call.function.arguments}"
+    )
 
 
 if __name__ == "__main__":
