@@ -7,6 +7,8 @@ from redis_client import RedisClient
 class ObjectInfo(BaseModel):
     name: str
     inrange: bool
+    position: tuple[float, float, float]
+    rotation: tuple[float, float, float]
 
 
 class UserInfo(BaseModel):
@@ -48,19 +50,25 @@ def get_system_message(vicon_info: ViconInfo) -> str:
     return system_message
 
 
-vicon_info = {
+vicon_info_dict = {
     "Objects": [
         {
             "name": "apple",
             "inrange": True,
+            "position": (0.596527, 0.047547, 0.27),
+            "rotation": (178, -0.48, 86),
         },
         {
             "name": "banana",
             "inrange": False,
+            "position": (0.596527, 0.047547, 0.27),
+            "rotation": (178, -0.48, 86),
         },
         {
             "name": "orange",
             "inrange": True,
+            "position": (0.596527, 0.047547, 0.27),
+            "rotation": (178, -0.48, 86),
         },
     ],
     "User": {
@@ -74,27 +82,17 @@ def main() -> None:
     llm_client = LLMClient()
     redis_client = RedisClient()
 
-    vicon_info_dict = {
-        "Objects": [
-            {"name": "apple", "inrange": True},
-            {"name": "banana", "inrange": False},
-            {"name": "orange", "inrange": True},
-        ],
-        "User": {"palm_up": True},
-    }
     vicon_info = ViconInfo(**vicon_info_dict)
     system_message = get_system_message(vicon_info)
     user_message = "Grab the apple"
+
     function_calls = llm_client.prompt_robot_action(system_message, [user_message])
     assert function_calls is not None, "Function calls returned None"
+    func = function_calls[0].function
+    print(f"Publishing function call: {func}")
 
     channel = "robot_command_channel"
-    function_call = function_calls[0]
-    print(f"Publishing function call: {function_call}")
-
-    redis_client.publish(
-        channel, f"{function_call.function.name} {function_call.function.arguments}"
-    )
+    redis_client.publish(channel, f"{func.name} {func.arguments}")
 
 
 if __name__ == "__main__":
