@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 from llm_client import LLMClient
 from redis_client import RedisClient
+import json
 
 
 class ObjectInfo(BaseModel):
@@ -92,7 +93,13 @@ def main() -> None:
     print(f"Publishing function call: {func}")
 
     channel = "robot_command_channel"
-    redis_client.publish(channel, f"{func.name} {func.arguments}")
+    object_name = json.loads(func.arguments)["name"]
+    vicon_object = next((d for d in vicon_info_dict["Objects"] if d["name"] == object_name), None)
+    assert vicon_object is not None
+
+    vicon_object["function_name"] = func.name
+    print(f"{vicon_object=}")
+    redis_client.publish(channel, json.dumps(vicon_object))
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@ import queue
 import logging
 import threading
 import numpy as np
-from vicon.vicon_client import ViconClient
+# from vicon.vicon_client import ViconClient
 from aubo_robot.auboi5_robot import (
     Auboi5Robot,
     RobotError,
@@ -30,7 +30,7 @@ class RobotController:
         self.with_vicon = with_vicon
         if with_vicon:
             self.vicon_queue = queue.Queue()
-            self.vicon_client = ViconClient()
+            # self.vicon_client = ViconClient()
         self.robot = Auboi5Robot()
         self.gripper = Gripper(port="COM4")
         self.controller_running = False
@@ -158,8 +158,8 @@ class RobotController:
 
     def grab_object(
         self,
-        target_pos: tuple[float, float, float] = (0.596527, 0.047547, 0.27),
-        target_rot: tuple[float, float, float] = (178, -0.48, 86),
+        target_pos = (0.596527, 0.047547, 0.27),
+        target_rot = (178, -0.48, 86),
     ):
         """
         Hard coded grasp sequence for testing purposes. It moves the robot to a

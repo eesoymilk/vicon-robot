@@ -15,13 +15,13 @@ class LLMClient:
         an OpenAI client instance. Define the system message and the tool set.
         """
         load_dotenv()
-        self.client = OpenAI()
+        # self.client = OpenAI()
 
         # Set up your system prompt
         self.system_message = """
-            You are a robotic arm assistant. You are tasked with picking up objects 
-            and placing them in a specific location. You are to understand the user's 
-            needs from a high-level description and execute the necessary actions. 
+            You are a robotic arm assistant. You are tasked with picking up objects
+            and placing them in a specific location. You are to understand the user's
+            needs from a high-level description and execute the necessary actions.
             You have access to the following information:
             ```
             VICON Information:

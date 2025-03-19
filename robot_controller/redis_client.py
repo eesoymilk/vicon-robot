@@ -50,7 +50,8 @@ class RedisClient:
 def message_listener(pubsub: redis.client.PubSub):
     logger.info("Listener thread started, waiting for messages...")
     while True:
-        if not (message := pubsub.get_message()):
+        message = pubsub.get_message()
+        if not message:
             time.sleep(1)
         print(f"Received message: {message}")
 
