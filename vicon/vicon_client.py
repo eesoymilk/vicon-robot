@@ -144,3 +144,10 @@ class ViconClient:
                 subjectName, marker_name
             )
         return markers
+
+    def get_all_subject_markers(self):
+        subjects = {}
+        subjectNames = self.client.GetSubjectNames()
+        for subjectName in subjectNames:
+            subjects[subjectName] = self.get_vicon_subject_markers(subjectName)
+        return subjects
