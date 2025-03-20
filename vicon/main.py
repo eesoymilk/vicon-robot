@@ -26,8 +26,8 @@ def main():
 
     while True:
         vicon_client.get_frame()
-        vicon_subject_info = vicon_client.get_all_subject_markers()
-        redis_client.set_value("vicon_info", json.dumps(vicon_subject_info))
+        vicon_info_dict = vicon_client.get_vicon_info_dict()
+        redis_client.set_value("vicon_info", json.dumps(vicon_info_dict))
         time.sleep(0.1)
 
 

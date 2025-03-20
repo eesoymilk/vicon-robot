@@ -3,7 +3,7 @@ import threading
 import time
 from typing import Callable, Optional
 import redis
-import redis.client
+from redis.client import PubSub
 
 
 logger = logging.getLogger(__name__)
@@ -20,34 +20,22 @@ class RedisClient:
         port: int = 6379,
         decode_responses: bool = True,
     ):
-        """
-        Initializes the Redis client connection.
-        :param host: Redis server host (default: localhost)
-        :param port: Redis server port (default: 6379)
-        :param decode_responses: If True, automatically decode bytes to str
-        """
-        self._redis = redis.Redis(
-            host=host, port=port, decode_responses=decode_responses
-        )
+        self._redis = redis.Redis(host, port, decode_responses=decode_responses)
 
     def subscribe(
         self,
         channel: str,
-        handler: Optional[Callable[[str], None]] = None,
+        handler: Optional[Callable[[dict[str]], None]] = None,
     ):
-        """
-        Return a PubSub object subscribed to the specified channel.
-        You can then iterate over its messages in a separate loop.
-        """
         pubsub = self._redis.pubsub()
         if handler:
-            pubsub.subscribe(**{channel: handler})
+            pubsub.subscribe(**{channel: handler} if handler else channel)
         else:
             pubsub.subscribe(channel)
         return pubsub
 
 
-def message_listener(pubsub: redis.client.PubSub):
+def message_listener(pubsub: PubSub):
     logger.info("Listener thread started, waiting for messages...")
     while True:
         message = pubsub.get_message()

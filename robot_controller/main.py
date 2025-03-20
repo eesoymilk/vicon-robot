@@ -3,6 +3,7 @@ import json
 import logging
 import logging.config
 from pathlib import Path
+from typing import Dict, Optional
 
 from command import Command
 from redis_client import RedisClient
@@ -38,7 +39,7 @@ def main():
 
     time.sleep(1)
 
-    def pubsub_handler(message):
+    def pubsub_handler(message: Optional[Dict[str]]):
         if not message:
             return
 
