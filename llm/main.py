@@ -1,24 +1,26 @@
-from dotenv import load_dotenv
-from pydantic import BaseModel
-from llm_client import LLMClient
-from redis_client import RedisClient
 import json
+import logging
+from pathlib import Path
+
+from dotenv import load_dotenv
+from openai.types.chat.chat_completion_message_tool_call import Function
+
+from vicon_info import ViconInfo
+from agent import Agent
+from redis_client import RedisClient
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+LOG_DIR = SCRIPT_DIR.parent / "logs"
+LOG_DIR.mkdir(exist_ok=True)
+
+logger = logging.getLogger(__name__)
 
 
-class ObjectInfo(BaseModel):
-    name: str
-    inrange: bool
-    position: tuple[float, float, float]
-    rotation: tuple[float, float, float]
-
-
-class UserInfo(BaseModel):
-    palm_up: bool
-
-
-class ViconInfo(BaseModel):
-    Objects: list[ObjectInfo]
-    User: UserInfo
+def setup_logging():
+    config_file = SCRIPT_DIR.parent / "logging_config.json"
+    with open(config_file, "r") as f:
+        logging_config = json.load(f)
+    logging.config.dictConfig(logging_config)
 
 
 def get_system_message(vicon_info: ViconInfo) -> str:
@@ -27,7 +29,7 @@ def get_system_message(vicon_info: ViconInfo) -> str:
     """
     # Build a snippet that mirrors your original system prompt structure:
     objects_str = ""
-    for obj in vicon_info.Objects:
+    for obj in vicon_info.objects:
         objects_str += f"""
     {{
         name: "{obj.name}",
@@ -51,55 +53,44 @@ def get_system_message(vicon_info: ViconInfo) -> str:
     return system_message
 
 
-vicon_info_dict = {
-    "Objects": [
-        {
-            "name": "apple",
-            "inrange": True,
-            "position": (0.596527, 0.047547, 0.27),
-            "rotation": (178, -0.48, 86),
-        },
-        {
-            "name": "banana",
-            "inrange": False,
-            "position": (0.596527, 0.047547, 0.27),
-            "rotation": (178, -0.48, 86),
-        },
-        {
-            "name": "orange",
-            "inrange": True,
-            "position": (0.596527, 0.047547, 0.27),
-            "rotation": (178, -0.48, 86),
-        },
-    ],
-    "User": {
-        "palm_up": True,
-    },
-}
+def get_vicon_info(redis_client: RedisClient) -> ViconInfo:
+    raw_vicon_info = redis_client.get("vicon_info")
+    vicon_info_dict = json.loads(raw_vicon_info)
+    return ViconInfo(**vicon_info_dict)
+
+
+def prompt_robot_action(
+    agent: Agent,
+    system_message: str,
+    user_messages: list[str],
+):
+    function_calls = agent.prompt_robot_action(system_message, user_messages)
+    func = function_calls[0].function
+    logger.info(f"Publishing function call: {func}")
+    return func
+
+
+def get_command(vicon_info: ViconInfo, function_call: Function):
+    object_name = json.loads(function_call.arguments)["name"]
+    command_dict = next((o for o in vicon_info.objects if o.name == object_name), None)
+    assert command_dict is not None, f"Object {object_name} not found in ViconInfo"
+    command_dict["function_name"] = function_call.name
+    return json.dumps(command_dict)
 
 
 def main() -> None:
     load_dotenv()
-    llm_client = LLMClient()
+    agent = Agent()
     redis_client = RedisClient()
+    redis_pub_channel = "robot_command_channel"
 
-    vicon_info = ViconInfo(**vicon_info_dict)
-    system_message = get_system_message(vicon_info)
-    user_message = "Grab the apple"
-
-    function_calls = llm_client.prompt_robot_action(system_message, [user_message])
-    assert function_calls is not None, "Function calls returned None"
-    func = function_calls[0].function
-    print(f"Publishing function call: {func}")
-
-    channel = "robot_command_channel"
-    object_name = json.loads(func.arguments)["name"]
-    vicon_object = next((d for d in vicon_info_dict["Objects"] if d["name"] == object_name), None)
-    assert vicon_object is not None
-
-    vicon_object["function_name"] = func.name
-    print(f"{vicon_object=}")
-    redis_client.publish(channel, json.dumps(vicon_object))
+    while True:
+        user_prompt = agent.listen_user_prompt()  # blocking call
+        vicon_info = get_vicon_info(redis_client)
+        system_message = get_system_message(vicon_info)
+        function_call = prompt_robot_action(agent, system_message, [user_prompt])
+        command = get_command(vicon_info, function_call)
+        redis_client.publish(redis_pub_channel, command)
 
 
 if __name__ == "__main__":

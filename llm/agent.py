@@ -1,49 +1,16 @@
-from dotenv import load_dotenv
+import logging
 from openai import OpenAI
 
+logger = logging.getLogger(__name__)
 
-class LLMClient:
-    """
-    A class-based application to handle interactions with an OpenAI model.
-    This app simulates a robotic arm assistant that can grab objects based
-    on user prompts, using Redis for possible expansions or other tools if needed.
-    """
 
-    def __init__(self) -> None:
-        """
-        Initialize the application by loading environment variables and creating
-        an OpenAI client instance. Define the system message and the tool set.
-        """
-        load_dotenv()
-        # self.client = OpenAI()
+class Agent:
+    def __init__(self, test_mode: bool = False) -> None:
+        self.test_mode = test_mode
 
-        # Set up your system prompt
-        self.system_message = """
-            You are a robotic arm assistant. You are tasked with picking up objects
-            and placing them in a specific location. You are to understand the user's
-            needs from a high-level description and execute the necessary actions.
-            You have access to the following information:
-            ```
-            VICON Information:
-            Objects: [{
-                name: "apple",
-                inrange: True,
-            },
-            {
-                name: "banana",
-                inrange: False,
-            },
-            {
-                name: "orange",
-                inrange: True,
-            }]
-            User: {
-                palm_up: True,
-            }
-            ```
-        """
+        if not self.test_mode:
+            self.client = OpenAI()
 
-        # Define the set of tools (functions) the model can use
         self.tools = [
             {
                 "type": "function",
@@ -91,26 +58,23 @@ class LLMClient:
         system_message: str,
         user_messages: list[str],
     ):
-        """
-        Sends a prompt to the OpenAI model, including the system message
-        and any user messages, along with defined tools. Prints out the tool calls
-        that the model requests.
-        """
-        from openai.types.chat.chat_completion_message_tool_call import (
-            ChatCompletionMessageToolCall,
-            Function,
-        )
-
-        return [
-            ChatCompletionMessageToolCall(
-                id="1",
-                function=Function(
-                    arguments='{"name": "apple"}',
-                    name="grab_object",
-                ),
-                type="function",
+        if self.test_mode:
+            from openai.types.chat.chat_completion_message_tool_call import (
+                ChatCompletionMessageToolCall,
+                Function,
             )
-        ]
+
+            return [
+                ChatCompletionMessageToolCall(
+                    id="1",
+                    function=Function(
+                        arguments='{"name": "apple"}',
+                        name="grab_object",
+                    ),
+                    type="function",
+                )
+            ]
+
         completion = self.client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
@@ -133,6 +97,9 @@ class LLMClient:
                 print(f"  - {func_name}({func_args})")
             return tool_calls
 
+    def listen_user_prompt(self):
+        return input("User Prompt: ").strip()
+
     def test_run(self) -> None:
         test_prompts = [
             "I want to eat an apple.",
@@ -149,7 +116,7 @@ def main() -> None:
     """
     Create and run an instance of the RobotArmChatApp.
     """
-    app = LLMClient()
+    app = Agent()
     app.test_run()
 
 
