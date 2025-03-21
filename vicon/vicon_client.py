@@ -2,7 +2,6 @@ import sys
 import time
 import logging
 
-import numpy as np
 from vicon_dssdk import ViconDataStream
 
 logger = logging.getLogger(__name__)
@@ -153,14 +152,3 @@ class ViconClient:
         for subjectName in subjectNames:
             subjects[subjectName] = self.get_vicon_subject_markers(subjectName)
         return subjects
-
-    def get_vicon_info_dict(self):
-        vicon_info_dict = {}
-        subject_markers = self.get_all_subject_markers()
-        for subject_name, markers in subject_markers.items():
-            vicon_info_dict[subject_name] = {
-                "name": subject_name,
-                "inrange": True,
-                "position": np.mean(list(markers.values()), axis=0),
-            }
-        return vicon_info_dict

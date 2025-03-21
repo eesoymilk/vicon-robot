@@ -1,5 +1,6 @@
-import redis
 import logging
+
+import redis
 
 logger = logging.getLogger(__name__)
 
@@ -15,3 +16,6 @@ class RedisClient:
 
     def publish(self, channel: str, message):
         self._redis.publish(channel, message)
+
+    def get_value(self, key: str) -> str:
+        return self._redis.get(key)

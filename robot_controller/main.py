@@ -14,6 +14,8 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 LOG_DIR = SCRIPT_DIR.parent / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 
+REDIS_SUB_CHANNEL = "robot_command_channel"
+
 logger = logging.getLogger(__name__)
 
 
@@ -29,10 +31,10 @@ def command_robot(controller: RobotController, command: Command):
     if command.function_name == "grab_object":
         controller.grab_object(command.position)
 
+
 def get_base(redis_client: RedisClient):
     while True:
-        raw_vicon_info = json.loads(redis_client.get_value("vicon_info"))
-        print("raw_vicon_info")
+        raw_vicon_info = json.loads(redis_client.get_value("vicon_subjects"))
         base_markers = raw_vicon_info["Base"]
 
         if all([coord == 0 for coord in base_markers["XYPlane1"][0]]):
@@ -48,13 +50,15 @@ def get_base(redis_client: RedisClient):
 
 def main():
     setup_logging()
-
-    channel = "robot_command_channel"
     redis_client = RedisClient()
     robot_controller = RobotController()
-    robot_controller.initialize_robot()
 
+    robot_controller.initialize_robot()
     time.sleep(1)
+
+    base = get_base(redis_client)
+    logger.warning(f"=== Robot base: {base} ===")
+    return
 
     def pubsub_handler(message):
         if not message:
@@ -68,7 +72,7 @@ def main():
 
     try:
         logger.info("Listening for robot commands...")
-        pubsub = redis_client.subscribe(channel, pubsub_handler)
+        pubsub = redis_client.subscribe(REDIS_SUB_CHANNEL, pubsub_handler)
         pubsub_thread = pubsub.run_in_thread(sleep_time=0.001)
         while True:
             time.sleep(1)

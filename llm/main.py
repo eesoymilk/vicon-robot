@@ -13,6 +13,11 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 LOG_DIR = SCRIPT_DIR.parent / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 
+REDIS_KEY = "vicon_subjects"
+REDIS_PUB_CHANNEL = "robot_command_channel"
+ROBOT_BASE_COORDINATE = (0, 0, 0)
+EXPECTED_OBJECTS = ["apple", "banana", "orange"]
+
 logger = logging.getLogger(__name__)
 
 
@@ -53,23 +58,6 @@ def get_system_message(vicon_info: ViconInfo) -> str:
     return system_message
 
 
-def get_vicon_info(redis_client: RedisClient) -> ViconInfo:
-    raw_vicon_info = redis_client.get("vicon_info")
-    vicon_info_dict = json.loads(raw_vicon_info)
-    return ViconInfo(**vicon_info_dict)
-
-
-def prompt_robot_action(
-    agent: Agent,
-    system_message: str,
-    user_messages: list[str],
-):
-    function_calls = agent.prompt_robot_action(system_message, user_messages)
-    func = function_calls[0].function
-    logger.info(f"Publishing function call: {func}")
-    return func
-
-
 def get_command(vicon_info: ViconInfo, function_call: Function):
     object_name = json.loads(function_call.arguments)["name"]
     command_dict = next((o for o in vicon_info.objects if o.name == object_name), None)
@@ -82,15 +70,19 @@ def main() -> None:
     load_dotenv()
     agent = Agent()
     redis_client = RedisClient()
-    redis_pub_channel = "robot_command_channel"
 
     while True:
         user_prompt = agent.listen_user_prompt()  # blocking call
-        vicon_info = get_vicon_info(redis_client)
+        redis_value = redis_client.get_value(REDIS_KEY)
+        vicon_info = ViconInfo.from_redis_value(
+            redis_value,
+            robot_base_coordinate=ROBOT_BASE_COORDINATE,
+            expected_objects=EXPECTED_OBJECTS,
+        )
         system_message = get_system_message(vicon_info)
-        function_call = prompt_robot_action(agent, system_message, [user_prompt])
+        function_call = agent.prompt_robot_action(system_message, [user_prompt])
         command = get_command(vicon_info, function_call)
-        redis_client.publish(redis_pub_channel, command)
+        redis_client.publish(REDIS_PUB_CHANNEL, command)
 
 
 if __name__ == "__main__":
