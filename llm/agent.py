@@ -57,24 +57,20 @@ class Agent:
         self,
         system_message: str,
         user_messages: list[str],
+        model: str = "gpt-4o-mini"
     ):
         if self.test_mode:
             from openai.types.chat.chat_completion_message_tool_call import (
-                ChatCompletionMessageToolCall,
                 Function,
             )
 
-            return ChatCompletionMessageToolCall(
-                id="1",
-                function=Function(
-                    arguments='{"name": "apple"}',
-                    name="grab_object",
-                ),
-                type="function",
+            return Function(
+                arguments='{"name": "Cube"}',
+                name="grab_object",
             )
 
         completion = self.client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=model,
             messages=[
                 {"role": "system", "content": system_message},
                 *[{"role": "user", "content": msg} for msg in user_messages],

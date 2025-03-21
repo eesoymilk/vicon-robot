@@ -37,39 +37,46 @@ class ViconInfo(BaseModel):
         value_dict = json.loads(value)
         objects = []
 
+        flange_offset = 0.2
         for subject_name, markers in value_dict.items():
             if subject_name not in expected_objects:
                 continue
-            position = np.mean(list(markers.values()), axis=0) - robot_base_coordinate
+            logger.info(f"markers {markers}")
+            position = np.mean([pos for pos, _ in (markers.values())], axis=0) / 1000
+            offset_position = position - robot_base_coordinate
+            logger.info(f"ori position {offset_position}")
+            offset_position[2] = offset_position[2] + flange_offset
+            logger.info(f"position {offset_position}")
+
             objects.append(
                 ObjectInfo(
                     name=subject_name,
                     inrange=True,
-                    position=position,
+                    position=tuple(offset_position)
                 )
             )
 
         user = UserInfo(palm_up=True)
-        return ViconInfo(objects=objects, User=user)
+        return ViconInfo(objects=objects, user=user)
 
 
-example_vicon_info = ViconInfo(
-    objects=[
-        ObjectInfo(
-            name="apple",
-            inrange=True,
-            position=(0.596527, 0.047547, 0.27),
-        ),
-        ObjectInfo(
-            name="banana",
-            inrange=False,
-            position=(0.596527, 0.047547, 0.27),
-        ),
-        ObjectInfo(
-            name="orange",
-            inrange=True,
-            position=(0.596527, 0.047547, 0.27),
-        ),
-    ],
-    User=UserInfo(palm_up=True),
-)
+# example_vicon_info = ViconInfo(
+#     objects=[
+#         ObjectInfo(
+#             name="apple",
+#             inrange=True,
+#             position=(0.596527, 0.047547, 0.27),
+#         ),
+#         ObjectInfo(
+#             name="banana",
+#             inrange=False,
+#             position=(0.596527, 0.047547, 0.27),
+#         ),
+#         ObjectInfo(
+#             name="orange",
+#             inrange=True,
+#             position=(0.596527, 0.047547, 0.27),
+#         ),
+#     ],
+#     User=UserInfo(palm_up=True),
+# )

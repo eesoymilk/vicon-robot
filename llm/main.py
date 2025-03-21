@@ -1,7 +1,9 @@
 import json
 import logging
+import logging.config
 from pathlib import Path
 
+import numpy as np
 from dotenv import load_dotenv
 from openai.types.chat.chat_completion_message_tool_call import Function
 
@@ -10,13 +12,14 @@ from agent import Agent
 from redis_client import RedisClient
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-LOG_DIR = SCRIPT_DIR.parent / "logs"
+LOG_DIR = SCRIPT_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 
+TEST_MODE=True
 REDIS_KEY = "vicon_subjects"
 REDIS_PUB_CHANNEL = "robot_command_channel"
-ROBOT_BASE_COORDINATE = (0, 0, 0)
-EXPECTED_OBJECTS = ["apple", "banana", "orange"]
+ROBOT_BASE_COORDINATE = np.array((-0.60834328463, -0.05565796363, 0.03369949684))
+EXPECTED_OBJECTS = ["Cube"]
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +45,7 @@ def get_system_message(vicon_info: ViconInfo) -> str:
     }},"""
     objects_str = objects_str.strip().rstrip(",")
 
-    user_str = f"{{ palm_up: {str(vicon_info.User.palm_up).lower()} }}"
+    user_str = f"{{ palm_up: {str(vicon_info.user.palm_up).lower()} }}"
 
     system_message = f"""
     You are a robotic arm assistant. You are tasked with picking up objects
@@ -60,15 +63,16 @@ def get_system_message(vicon_info: ViconInfo) -> str:
 
 def get_command(vicon_info: ViconInfo, function_call: Function):
     object_name = json.loads(function_call.arguments)["name"]
-    command_dict = next((o for o in vicon_info.objects if o.name == object_name), None)
-    assert command_dict is not None, f"Object {object_name} not found in ViconInfo"
-    command_dict["function_name"] = function_call.name
+    object_info = next((o for o in vicon_info.objects if o.name == object_name), None)
+    assert object_info is not None, f"Object {object_name} not found in ViconInfo"
+    command_dict = {"function_name": function_call.name, **object_info.model_dump() }
     return json.dumps(command_dict)
 
 
 def main() -> None:
     load_dotenv()
-    agent = Agent()
+    setup_logging()
+    agent = Agent(test_mode=TEST_MODE)
     redis_client = RedisClient()
 
     while True:
@@ -80,8 +84,13 @@ def main() -> None:
             expected_objects=EXPECTED_OBJECTS,
         )
         system_message = get_system_message(vicon_info)
-        function_call = agent.prompt_robot_action(system_message, [user_prompt])
+        function_call = agent.prompt_robot_action(
+            system_message,
+            [user_prompt],
+            model="gpt-4o-mini"
+        )
         command = get_command(vicon_info, function_call)
+        logger.info(f"{command=}")
         redis_client.publish(REDIS_PUB_CHANNEL, command)
 
 
