@@ -64,16 +64,14 @@ class Agent:
                 Function,
             )
 
-            return [
-                ChatCompletionMessageToolCall(
-                    id="1",
-                    function=Function(
-                        arguments='{"name": "apple"}',
-                        name="grab_object",
-                    ),
-                    type="function",
-                )
-            ]
+            return ChatCompletionMessageToolCall(
+                id="1",
+                function=Function(
+                    arguments='{"name": "apple"}',
+                    name="grab_object",
+                ),
+                type="function",
+            )
 
         completion = self.client.chat.completions.create(
             model="gpt-4o-mini",
@@ -84,18 +82,17 @@ class Agent:
             tools=self.tools,
         )
 
-        # Display the model's response details (which tools/functions it wants to call)
-        print(f"Prompt: {user_messages[0]}\nResponse:")
         tool_calls = completion.choices[0].message.tool_calls
+        assert tool_calls, "No tool calls found in the response."
 
-        if not tool_calls:
-            print("  - No tool calls.")
-        else:
-            for tool_call in tool_calls:
-                func_name = tool_call.function.name
-                func_args = tool_call.function.arguments
-                print(f"  - {func_name}({func_args})")
-            return tool_calls
+        # Display the model's response details (which tools/functions it wants to call) in debug logs
+        logger.debug(f"Prompt: {user_messages[0]}\nResponse:")
+        for tool_call in tool_calls:
+            func_name = tool_call.function.name
+            func_args = tool_call.function.arguments
+            logger.debug(f"  - {func_name}({func_args})")
+
+        return tool_calls[0].function
 
     def listen_user_prompt(self):
         return input("User Prompt: ").strip()
@@ -107,7 +104,7 @@ class Agent:
             "I want to eat a banana.",
         ]
 
-        print(f"System Message:\n{self.system_message}")
+        logger.info(f"System Message:\n{self.system_message}")
         for prompt in test_prompts:
             self.prompt_robot_action([prompt])
 
