@@ -1,6 +1,7 @@
 from pydantic import BaseModel
+from typing import Tuple
 
 
 class Command(BaseModel):
     function_name: str
-    position: tuple[float, float, float]
+    position: Tuple[float, float, float]
