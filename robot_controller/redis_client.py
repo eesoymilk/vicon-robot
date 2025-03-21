@@ -1,7 +1,7 @@
 import logging
 import threading
 import time
-from typing import Callable, Optional
+from typing import Callable, Optional, Dict
 import redis
 from redis.client import PubSub
 
@@ -22,10 +22,16 @@ class RedisClient:
     ):
         self._redis = redis.Redis(host, port, decode_responses=decode_responses)
 
+    def get_value(self, key: str) -> str:
+        """
+        Get the value for the specified key from Redis.
+        """
+        return self._redis.get(key)
+
     def subscribe(
         self,
         channel: str,
-        handler: Optional[Callable[[dict[str]], None]] = None,
+        handler = None,
     ):
         pubsub = self._redis.pubsub()
         if handler:

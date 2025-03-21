@@ -31,7 +31,7 @@ class ViconClient:
             self.client.Connect(self._host)
 
             # Check the version
-            logger.infp("Version", self.client.GetVersion())
+            logger.info(f"Version: {self.client.GetVersion()}")
 
             # Check setting the buffer size works
             self.client.SetBufferSize(1)
@@ -103,7 +103,7 @@ class ViconClient:
                 f"Timecode: {hours} hours {minutes} minutes {seconds} seconds {frames} frames {subframe} sub frame {fieldFlag} field flag {standard} standard {subFramesPerFrame} sub frames per frame {userBits} user bits"
             )
 
-            logger.info("Latency", self.client.GetLatencyTotal())
+            logger.info(f"Latency: {self.client.GetLatencyTotal()}")
             logger.info(f"Latency Samples: {self.client.GetLatencySamples()}")
             logger.info(f"Frame Rate: {self.client.GetFrameRate()}")
 

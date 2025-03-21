@@ -24,13 +24,9 @@ class RobotController:
     robot_ip = "192.168.0.246"
     robot_port = 8899
 
-    def __init__(self, with_vicon=False):
+    def __init__(self):
         """Initialize the robot controller with Vicon and robot interfaces."""
         logger_init()
-        self.with_vicon = with_vicon
-        if with_vicon:
-            self.vicon_queue = queue.Queue()
-            # self.vicon_client = ViconClient()
         self.robot = Auboi5Robot()
         self.gripper = Gripper(port="COM4")
         self.controller_running = False
@@ -67,11 +63,11 @@ class RobotController:
         # self.robot.set_arrival_ahead_blend(0.05) # try arrival ahead time (0.5)
 
         # Move robot to initial position
-        self.robot.move_to_target_in_cartesian(
-            self.robot_init_pose, self.robot_init_rot
-        )
+        # self.robot.move_to_target_in_cartesian(
+        #     self.robot_init_pose, self.robot_init_rot
+        # )
 
-        while self.robot_base is None and self.with_vicon:
+        while self.robot_base:
             self.vicon_client.get_frame()
             base_markers = self.vicon_client.get_vicon_subject_markers("Base")
 
@@ -84,6 +80,7 @@ class RobotController:
             self.robot_base = np.mean(robot_base_planes, axis=0)
             self.robot_base[2] = base_markers["Zbase"][0][2]
 
+            print(f"=== ROBOT BASE: {self.robot_base} ===")
             logger.info(f"Robot base: {self.robot_base}")
 
     def get_ik_result(self, target, rotation):
