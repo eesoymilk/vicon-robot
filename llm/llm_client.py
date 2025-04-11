@@ -1,5 +1,6 @@
 from dotenv import load_dotenv
 from openai import OpenAI
+import os
 
 
 class LLMClient:
@@ -15,7 +16,7 @@ class LLMClient:
         an OpenAI client instance. Define the system message and the tool set.
         """
         load_dotenv()
-        # self.client = OpenAI()
+        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
         # Set up your system prompt
         self.system_message = """
@@ -96,21 +97,21 @@ class LLMClient:
         and any user messages, along with defined tools. Prints out the tool calls
         that the model requests.
         """
-        from openai.types.chat.chat_completion_message_tool_call import (
-            ChatCompletionMessageToolCall,
-            Function,
-        )
+        # from openai.types.chat.chat_completion_message_tool_call import (
+        #     ChatCompletionMessageToolCall,
+        #     Function,
+        # )
 
-        return [
-            ChatCompletionMessageToolCall(
-                id="1",
-                function=Function(
-                    arguments='{"name": "apple"}',
-                    name="grab_object",
-                ),
-                type="function",
-            )
-        ]
+        # return [
+        #     ChatCompletionMessageToolCall(
+        #         id="1",
+        #         function=Function(
+        #             arguments='{"name": "apple"}',
+        #             name="grab_object",
+        #         ),
+        #         type="function",
+        #     )
+        # ]
         completion = self.client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
