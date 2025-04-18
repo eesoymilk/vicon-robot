@@ -143,7 +143,7 @@ class LLMClient:
 
         print(f"System Message:\n{self.system_message}")
         for prompt in test_prompts:
-            self.prompt_robot_action([prompt])
+            self.prompt_robot_action(self.system_message, [prompt])
 
 
 def main() -> None:
