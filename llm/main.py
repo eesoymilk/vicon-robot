@@ -18,6 +18,7 @@ LOG_DIR.mkdir(exist_ok=True)
 TEST_MODE=True
 REDIS_KEY = "vicon_subjects"
 REDIS_PUB_CHANNEL = "robot_command_channel"
+# TODO: Use the actual robot base coordinate
 ROBOT_BASE_COORDINATE = np.array((-0.60834328463, -0.05565796363, 0.03369949684))
 EXPECTED_OBJECTS = ["Cube"]
 
