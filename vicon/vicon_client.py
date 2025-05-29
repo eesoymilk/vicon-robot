@@ -1,6 +1,7 @@
-import logging
 import sys
 import time
+import logging
+
 from vicon_dssdk import ViconDataStream
 
 logger = logging.getLogger(__name__)
@@ -29,7 +30,7 @@ class ViconClient:
             self.client.Connect(self._host)
 
             # Check the version
-            logger.infp("Version", self.client.GetVersion())
+            logger.info(f"Version: {self.client.GetVersion()}")
 
             # Check setting the buffer size works
             self.client.SetBufferSize(1)
@@ -101,7 +102,7 @@ class ViconClient:
                 f"Timecode: {hours} hours {minutes} minutes {seconds} seconds {frames} frames {subframe} sub frame {fieldFlag} field flag {standard} standard {subFramesPerFrame} sub frames per frame {userBits} user bits"
             )
 
-            logger.info("Latency", self.client.GetLatencyTotal())
+            logger.info(f"Latency: {self.client.GetLatencyTotal()}")
             logger.info(f"Latency Samples: {self.client.GetLatencySamples()}")
             logger.info(f"Frame Rate: {self.client.GetFrameRate()}")
 
@@ -144,3 +145,10 @@ class ViconClient:
                 subjectName, marker_name
             )
         return markers
+
+    def get_all_subject_markers(self):
+        subjects = {}
+        subjectNames = self.client.GetSubjectNames()
+        for subjectName in subjectNames:
+            subjects[subjectName] = self.get_vicon_subject_markers(subjectName)
+        return subjects

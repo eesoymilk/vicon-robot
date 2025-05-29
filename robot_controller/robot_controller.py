@@ -10,7 +10,6 @@ from aubo_robot.auboi5_robot import (
     RobotError,
     RobotErrorType,
     RobotStatus,
-    logger_init,
 )
 from pyDHgripper import AG95 as Gripper
 
@@ -19,18 +18,15 @@ logger = logging.getLogger(__name__)
 
 class RobotController:
     robot_init_pose = (0.410444, 0.080962, 0.547597)
+    robot_return_pose = (0, 0.6, 0.25)
     robot_init_pose_np = np.array(robot_init_pose)
     robot_init_rot = (179.99847, -0.000170, 84.27533)
     robot_ip = "192.168.0.246"
     robot_port = 8899
 
-    def __init__(self, with_vicon=False):
+    def __init__(self):
         """Initialize the robot controller with Vicon and robot interfaces."""
-        logger_init()
-        self.with_vicon = with_vicon
-        if with_vicon:
-            self.vicon_queue = queue.Queue()
-            # self.vicon_client = ViconClient()
+        # logger_init()
         self.robot = Auboi5Robot()
         self.gripper = Gripper(port="COM4")
         self.controller_running = False
@@ -67,11 +63,11 @@ class RobotController:
         # self.robot.set_arrival_ahead_blend(0.05) # try arrival ahead time (0.5)
 
         # Move robot to initial position
-        self.robot.move_to_target_in_cartesian(
-            self.robot_init_pose, self.robot_init_rot
-        )
+        # self.robot.move_to_target_in_cartesian(
+        #     self.robot_init_pose, self.robot_init_rot
+        # )
 
-        while self.robot_base is None and self.with_vicon:
+        while self.robot_base:
             self.vicon_client.get_frame()
             base_markers = self.vicon_client.get_vicon_subject_markers("Base")
 
@@ -84,6 +80,7 @@ class RobotController:
             self.robot_base = np.mean(robot_base_planes, axis=0)
             self.robot_base[2] = base_markers["Zbase"][0][2]
 
+            print(f"=== ROBOT BASE: {self.robot_base} ===")
             logger.info(f"Robot base: {self.robot_base}")
 
     def get_ik_result(self, target, rotation):
@@ -91,24 +88,6 @@ class RobotController:
         joint_radian = self.robot.get_current_waypoint()
         ik_result = self.robot.inverse_kin(joint_radian["joint"], target, ori)
         return ik_result
-
-    def vicon_reader(self):
-        """Thread function to read Vicon coordinates and push them into the queue."""
-        while self.controller_running:
-            if self.robot_moving:
-                logger.debug("\n\n\nRobot is running, skipping points\n\n")
-                continue
-
-            self.vicon_client.get_frame()
-            hand_markers = self.vicon_client.get_vicon_subject_markers("Hand")
-            hand_center = np.array(hand_markers["Center"][0])
-
-            if np.all(hand_center == 0):
-                continue
-
-            # Get the center marker and convert to meters
-            target = (hand_center - self.robot_base) / 1000
-            self.vicon_queue.put(target)
 
     def robot_mover(self):
         """Thread function to retrieve targets from queue and move the robot."""
@@ -172,9 +151,19 @@ class RobotController:
         self.gripper.set_pos(20)
 
         time.sleep(1)
-        ik_result = self.get_ik_result(self.robot_init_pose, self.robot_init_rot)
+        lifted_pos = list(target_pos)
+        lifted_pos[2] = lifted_pos[2] + 0.1
+        ik_result = self.get_ik_result(lifted_pos, target_rot)
+        self.robot.move_joint(ik_result["joint"])
+
+        time.sleep(1)
+        ik_result = self.get_ik_result(self.robot_return_pose, self.robot_init_rot)
         self.robot.move_joint(ik_result["joint"])
         self.gripper.set_pos(900)
+
+        time.sleep(1)
+        ik_result = self.get_ik_result(self.robot_init_pose, self.robot_init_rot)
+        self.robot.move_joint(ik_result["joint"])
 
     def stop(self):
         """Stop the robot controller."""

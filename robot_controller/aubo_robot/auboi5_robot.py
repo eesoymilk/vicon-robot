@@ -14,45 +14,45 @@ from math import pi
 logger = logging.getLogger('main.robotcontrol')
 
 
-def logger_init():
-    # Log等级总开关
-    logger.setLevel(logging.INFO)
+# def logger_init():
+#     # Log等级总开关
+#     logger.setLevel(logging.INFO)
 
-    # 创建log目录
-    if not os.path.exists('./logfiles'):
-        os.mkdir('./logfiles')
+#     # 创建log目录
+#     if not os.path.exists('./logfiles'):
+#         os.mkdir('./logfiles')
 
-    # 创建一个handler，用于写入日志文件
-    logfile = './logfiles/robot-ctl-python.log'
+#     # 创建一个handler，用于写入日志文件
+#     logfile = './logfiles/robot-ctl-python.log'
 
-    # 以append模式打开日志文件
-    # fh = logging.FileHandler(logfile, mode='a')
-    fh = RotatingFileHandler(logfile, mode='a', maxBytes=1024*1024*50, backupCount=30)
+#     # 以append模式打开日志文件
+#     # fh = logging.FileHandler(logfile, mode='a')
+#     fh = RotatingFileHandler(logfile, mode='a', maxBytes=1024*1024*50, backupCount=30)
 
-    # 输出到file的log等级的开关
-    fh.setLevel(logging.INFO)
+#     # 输出到file的log等级的开关
+#     fh.setLevel(logging.INFO)
 
-    # 再创建一个handler，用于输出到控制台
-    ch = logging.StreamHandler()
+#     # 再创建一个handler，用于输出到控制台
+#     ch = logging.StreamHandler()
 
-    # 输出到console的log等级的开关
-    ch.setLevel(logging.INFO)
+#     # 输出到console的log等级的开关
+#     ch.setLevel(logging.INFO)
 
-    # 定义handler的输出格式
-    # formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
-    formatter = logging.Formatter("%(asctime)s [%(thread)u] %(levelname)s: %(message)s")
+#     # 定义handler的输出格式
+#     # formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
+#     formatter = logging.Formatter("%(asctime)s [%(thread)u] %(levelname)s: %(message)s")
 
-    # 为文件输出设定格式
-    fh.setFormatter(formatter)
+#     # 为文件输出设定格式
+#     fh.setFormatter(formatter)
 
-    # 控制台输出设定格式
-    ch.setFormatter(formatter)
+#     # 控制台输出设定格式
+#     ch.setFormatter(formatter)
 
-    # 设置文件输出到logger
-    logger.addHandler(fh)
+#     # 设置文件输出到logger
+#     logger.addHandler(fh)
 
-    # 设置控制台输出到logger
-    logger.addHandler(ch)
+#     # 设置控制台输出到logger
+#     logger.addHandler(ch)
 
 
 class RobotEventType:
@@ -2216,7 +2216,7 @@ class Auboi5Robot:
 # 测试函数
 def test(test_count):
     # 初始化logger
-    logger_init()
+    # logger_init()
 
     # 启动测试
     logger.info("{0} test beginning...".format(Auboi5Robot.get_local_time()))
@@ -2382,7 +2382,7 @@ def test(test_count):
 
 def step_test():
     # 初始化logger
-    logger_init()
+    # logger_init()
 
     # 启动测试
     logger.info("{0} test beginning...".format(Auboi5Robot.get_local_time()))
@@ -2462,7 +2462,7 @@ def step_test():
 
 def excit_traj_track_test():
     # 初始化logger
-    logger_init()
+    # logger_init()
 
     # 启动测试
     logger.info("{0} test beginning...".format(Auboi5Robot.get_local_time()))
@@ -2515,7 +2515,7 @@ def excit_traj_track_test():
             dynidentify_ret = robot.get_dynidentify_results()
             logger.info("dynidentify result={0}".format(dynidentify_ret))
             for i in range(0,54):
-	            dynidentify_ret[i] = dynidentify_ret[i]/1024.0
+                dynidentify_ret[i] = dynidentify_ret[i]/1024.0
             logger.info("dynidentify result={0}".format(dynidentify_ret))
 
             # 断开服务器链接
@@ -2536,7 +2536,7 @@ def excit_traj_track_test():
 
 def move_rotate_test():
     # 初始化logger
-    logger_init()
+    # logger_init()
 
     # 启动测试
     logger.info("{0} test beginning...".format(Auboi5Robot.get_local_time()))
@@ -2638,7 +2638,7 @@ def move_rotate_test():
 
 def test_rsm():
     # 初始化logger
-    logger_init()
+    # logger_init()
 
     # 启动测试
     logger.info("{0} test beginning...".format(Auboi5Robot.get_local_time()))
@@ -2721,7 +2721,7 @@ class GetRobotWaypointProcess(Process):
 
     def run(self):
         # 初始化logger
-        logger_init()
+        # logger_init()
 
         # 启动测试
         logger.info("{0} test beginning...".format(Auboi5Robot.get_local_time()))
@@ -2778,7 +2778,7 @@ def runWaypoint(queue):
 
 def test_process_demo():
     # 初始化logger
-    logger_init()
+    # logger_init()
 
     # 启动测试
     logger.info("{0} test beginning...".format(Auboi5Robot.get_local_time()))

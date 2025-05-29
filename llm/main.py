@@ -1,24 +1,35 @@
-from dotenv import load_dotenv
-from pydantic import BaseModel
-from llm_client import LLMClient
-from redis_client import RedisClient
 import json
+import logging
+import logging.config
+from pathlib import Path
+
+import numpy as np
+from dotenv import load_dotenv
+from openai.types.chat.chat_completion_message_tool_call import Function
+
+from vicon_info import ViconInfo
+from agent import Agent
+from redis_client import RedisClient
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+LOG_DIR = SCRIPT_DIR / "logs"
+LOG_DIR.mkdir(exist_ok=True)
+
+TEST_MODE=True
+REDIS_KEY = "vicon_subjects"
+REDIS_PUB_CHANNEL = "robot_command_channel"
+# TODO: Use the actual robot base coordinate
+ROBOT_BASE_COORDINATE = np.array((-0.60834328463, -0.05565796363, 0.03369949684))
+EXPECTED_OBJECTS = ["Cube"]
+
+logger = logging.getLogger(__name__)
 
 
-class ObjectInfo(BaseModel):
-    name: str
-    inrange: bool
-    position: tuple[float, float, float]
-    rotation: tuple[float, float, float]
-
-
-class UserInfo(BaseModel):
-    palm_up: bool
-
-
-class ViconInfo(BaseModel):
-    Objects: list[ObjectInfo]
-    User: UserInfo
+def setup_logging():
+    config_file = SCRIPT_DIR.parent / "logging_config.json"
+    with open(config_file, "r") as f:
+        logging_config = json.load(f)
+    logging.config.dictConfig(logging_config)
 
 
 def get_system_message(vicon_info: ViconInfo) -> str:
@@ -27,7 +38,7 @@ def get_system_message(vicon_info: ViconInfo) -> str:
     """
     # Build a snippet that mirrors your original system prompt structure:
     objects_str = ""
-    for obj in vicon_info.Objects:
+    for obj in vicon_info.objects:
         objects_str += f"""
     {{
         name: "{obj.name}",
@@ -35,7 +46,7 @@ def get_system_message(vicon_info: ViconInfo) -> str:
     }},"""
     objects_str = objects_str.strip().rstrip(",")
 
-    user_str = f"{{ palm_up: {str(vicon_info.User.palm_up).lower()} }}"
+    user_str = f"{{ palm_up: {str(vicon_info.user.palm_up).lower()} }}"
 
     system_message = f"""
     You are a robotic arm assistant. You are tasked with picking up objects
@@ -51,85 +62,37 @@ def get_system_message(vicon_info: ViconInfo) -> str:
     return system_message
 
 
-vicon_info_dict = {
-    "Objects": [
-        {
-            "name": "apple",
-            "inrange": True,
-            "position": (0.596527, 0.047547, 0.27),
-            "rotation": (178, -0.48, 86),
-        },
-        {
-            "name": "banana",
-            "inrange": False,
-            "position": (0.596527, 0.047547, 0.27),
-            "rotation": (178, -0.48, 86),
-        },
-        {
-            "name": "orange",
-            "inrange": True,
-            "position": (0.596527, 0.047547, 0.27),
-            "rotation": (178, -0.48, 86),
-        },
-    ],
-    "User": {
-        "palm_up": True,
-    },
-}
+def get_command(vicon_info: ViconInfo, function_call: Function):
+    object_name = json.loads(function_call.arguments)["name"]
+    object_info = next((o for o in vicon_info.objects if o.name == object_name), None)
+    assert object_info is not None, f"Object {object_name} not found in ViconInfo"
+    command_dict = {"function_name": function_call.name, **object_info.model_dump() }
+    return json.dumps(command_dict)
 
 
 def main() -> None:
     load_dotenv()
-    llm_client = LLMClient()
+    setup_logging()
+    agent = Agent(test_mode=TEST_MODE)
     redis_client = RedisClient()
 
-    vicon_info = ViconInfo(**vicon_info_dict)
-    system_message = get_system_message(vicon_info)
-    # user_message = "Grab the apple"
-    print("Robotic Assistant is ready. Type your command (type 'exit' to quit):")
     while True:
-        user_input = input("🗣️ You: ")
-        if user_input.strip().lower() in {"exit", "quit"}:
-            print("👋 Shutting down.")
-            break
-
-        function_calls = llm_client.prompt_robot_action(system_message, [user_input])
-        if not function_calls:
-            print("🤔 No action required.")
-            continue
-
-        func = function_calls[0].function
-        if func.name != "grab_object":
-            print(f"🤖 Model suggested: {func.name}, skipping.")
-            continue
-
-        object_name = json.loads(func.arguments)["name"]
-        vicon_object = next((obj for obj in vicon_info_dict["Objects"] if obj["name"] == object_name), None)
-        if not vicon_object:
-            print(f"⚠️ Object '{object_name}' not found in VICON data.")
-            continue
-
-        if not vicon_object["inrange"]:
-            print(f"⚠️ '{object_name}' is out of reach. Ignored.")
-            continue
-
-        vicon_object["function_name"] = func.name
-        redis_client.publish("robot_command_channel", json.dumps(vicon_object))
-        print(f"✅ Command sent: {vicon_object}")
-
-    # function_calls = llm_client.prompt_robot_action(system_message, [user_message])
-    # assert function_calls is not None, "Function calls returned None"
-    # func = function_calls[0].function
-    # print(f"Publishing function call: {func}")
-
-    # channel = "robot_command_channel"
-    # object_name = json.loads(func.arguments)["name"]
-    # vicon_object = next((d for d in vicon_info_dict["Objects"] if d["name"] == object_name), None)
-    # assert vicon_object is not None
-
-    # vicon_object["function_name"] = func.name
-    # print(f"{vicon_object=}")
-    # redis_client.publish(channel, json.dumps(vicon_object))
+        user_prompt = agent.listen_user_prompt()  # blocking call
+        redis_value = redis_client.get_value(REDIS_KEY)
+        vicon_info = ViconInfo.from_redis_value(
+            redis_value,
+            robot_base_coordinate=ROBOT_BASE_COORDINATE,
+            expected_objects=EXPECTED_OBJECTS,
+        )
+        system_message = get_system_message(vicon_info)
+        function_call = agent.prompt_robot_action(
+            system_message,
+            [user_prompt],
+            model="gpt-4o-mini"
+        )
+        command = get_command(vicon_info, function_call)
+        logger.info(f"{command=}")
+        redis_client.publish(REDIS_PUB_CHANNEL, command)
 
 
 if __name__ == "__main__":
