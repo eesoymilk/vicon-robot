@@ -16,8 +16,8 @@ class ObjectInfo(BaseModel):
 
 class UserInfo(BaseModel):
     palm_up: bool
-    inrange: bool
-    hand_position: tuple[float, float, float]
+    # inrange: bool
+    # hand_position: tuple[float, float, float]
 
 
 class ViconInfo(BaseModel):
