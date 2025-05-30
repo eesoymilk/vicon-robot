@@ -29,6 +29,9 @@ def setup_logging():
 def command_robot(controller: RobotController, command: Command):
     print(f"=== Function: {command.function_name}, Pos: {command.position} ===")
     if command.function_name == "grab_object":
+        if command.position is None:
+            logger.error("Command position is None, cannot grab object.")
+            return
         controller.grab_object(command.position)
 
 
