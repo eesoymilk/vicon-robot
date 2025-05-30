@@ -137,8 +137,8 @@ class RobotController:
 
     def grab_object(
         self,
-        target_pos = (0.596527, 0.047547, 0.27),
-        target_rot = (178, -0.48, 86),
+        target_pos = robot_return_pose,
+        target_rot = robot_init_rot,
     ):
         """
         Hard coded grasp sequence for testing purposes. It moves the robot to a
@@ -152,8 +152,14 @@ class RobotController:
 
         time.sleep(1)
         lifted_pos = list(target_pos)
-        lifted_pos[2] = lifted_pos[2] + 0.1
+        lifted_pos[2] = lifted_pos[2] + 0.2
         ik_result = self.get_ik_result(lifted_pos, target_rot)
+        self.robot.move_joint(ik_result["joint"])
+
+        time.sleep(1)
+        lifted_return_pos = list(self.robot_return_pose)
+        lifted_return_pos[2] = lifted_return_pos[2] + 0.1
+        ik_result = self.get_ik_result(lifted_return_pos, target_rot)
         self.robot.move_joint(ik_result["joint"])
 
         time.sleep(1)

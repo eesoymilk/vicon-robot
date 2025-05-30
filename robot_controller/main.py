@@ -15,6 +15,7 @@ LOG_DIR = SCRIPT_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 
 REDIS_SUB_CHANNEL = "robot_command_channel"
+ROBOT_BASE_COORDINATE = np.array((-0.60834328463, -0.05565796363, 0.03369949684))
 
 logger = logging.getLogger(__name__)
 
@@ -29,11 +30,10 @@ def setup_logging():
 def command_robot(controller: RobotController, command: Command):
     print(f"=== Function: {command.function_name}, Pos: {command.position} ===")
     if command.function_name == "grab_object":
-        if command.position is None:
-            logger.error("Command position is None, cannot grab object.")
+        if command.position is None or command.position+ROBOT_BASE_COORDINATE == 0:
+            print("Command position is None, cannot grab object.")
             return
         controller.grab_object(command.position)
-
 
 def get_base(redis_client: RedisClient):
     while True:
