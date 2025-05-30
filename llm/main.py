@@ -15,7 +15,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 LOG_DIR = SCRIPT_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 
-TEST_MODE=True
+TEST_MODE=False
 REDIS_KEY = "vicon_subjects"
 REDIS_PUB_CHANNEL = "robot_command_channel"
 # TODO: Use the actual robot base coordinate
@@ -90,6 +90,13 @@ def main() -> None:
             [user_prompt],
             model="gpt-4o-mini"
         )
+        if function_call == "noop":
+            print("No action taken: object not in range or not recognized.")
+            continue
+        elif function_call.name == "grab_object":
+            args = json.loads(function_call.arguments)
+            print(f"Function call: {function_call.name} with args: {args}")
+
         command = get_command(vicon_info, function_call)
         logger.info(f"{command=}")
         redis_client.publish(REDIS_PUB_CHANNEL, command)

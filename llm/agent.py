@@ -40,8 +40,8 @@ class Agent:
                 "function": {
                     "name": "noop",
                     "description": (
-                        "When the desired object is not in range, you should "
-                        "not do anything."
+                        "When the desired object is either not in range or not recognized, "
+                        "you should not do anything."
                     ),
                     "parameters": {
                         "type": "object",
@@ -79,7 +79,10 @@ class Agent:
         )
 
         tool_calls = completion.choices[0].message.tool_calls
-        assert tool_calls, "No tool calls found in the response."
+        if not tool_calls:
+            print("No tool calls found in the response.")
+            print("Response:", completion.choices[0].message.content)
+            return None
 
         # Display the model's response details (which tools/functions it wants to call) in debug logs
         logger.debug(f"Prompt: {user_messages[0]}\nResponse:")
