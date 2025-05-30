@@ -20,17 +20,42 @@ class Agent:
                         "Grabs the object by its name. You can only grab objects "
                         "that are in the provided VICON information, and you must "
                         "ensure it is in range."
+                        "If the user's palm is up, you should place the object at the location of the 'Palm' object."
                     ),
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "name": {
+                            # "name": {
+                            #     "type": "string",
+                            #     "description": "The name of the object to grab and place.",
+                            # }
+                            "object": {
                                 "type": "string",
-                                "description": "The name of the object to grab.",
+                                "description": (
+                                    "The name of the object to grab and place. "
+                                    "This should match an object in the VICON information."
+                                ),
+                            },
+                            "target": {
+                                "type": "string",
+                                "description": (
+                                    "The name of the target object where the grabbed object "
+                                    "should be placed. (eg. 'Palm' for the user's hand)"
+                                ),
                             }
                         },
                         "additionalProperties": False,
-                        "required": ["name"],
+                        "required": ["object", "target"],
+                        "examples": [
+                            {
+                                "object": "Cube",
+                                "target": "Palm",
+                            },
+                            {
+                                "object": "Apple",
+                                "target": "Palm",
+                            },
+                        ],
                     },
                     "strict": True,
                 },

@@ -20,7 +20,7 @@ REDIS_KEY = "vicon_subjects"
 REDIS_PUB_CHANNEL = "robot_command_channel"
 # TODO: Use the actual robot base coordinate
 ROBOT_BASE_COORDINATE = np.array((-0.60834328463, -0.05565796363, 0.03369949684))
-EXPECTED_OBJECTS = ["Cube"]
+EXPECTED_OBJECTS = ["Cube", "Palm"]
 
 logger = logging.getLogger(__name__)
 
@@ -48,11 +48,20 @@ def get_system_message(vicon_info: ViconInfo) -> str:
 
     user_str = f"{{ palm_up: {str(vicon_info.user.palm_up).lower()} }}"
 
+    if vicon_info.user.palm_up:
+        instruction_palm = (
+            "If the user's palm is up, you should grab the object "
+            "and place it in the user's hand."
+        )
+    else:
+        instruction_palm = ""
+
     system_message = f"""
     You are a robotic arm assistant. You are tasked with picking up objects
     and placing them in a specific location. You are to understand the user's
     needs from a high-level description and execute the necessary actions.
     You have access to the following information:
+    {instruction_palm}
     ```
     VICON Information:
     Objects: [{objects_str}]
@@ -63,10 +72,23 @@ def get_system_message(vicon_info: ViconInfo) -> str:
 
 
 def get_command(vicon_info: ViconInfo, function_call: Function):
-    object_name = json.loads(function_call.arguments)["name"]
+    args = json.loads(function_call.arguments)
+    object_name = args.get("object")
+    target_name = args.get("target")
+
     object_info = next((o for o in vicon_info.objects if o.name == object_name), None)
-    assert object_info is not None, f"Object {object_name} not found in ViconInfo"
-    command_dict = {"function_name": function_call.name, **object_info.model_dump() }
+    target_info = next((o for o in vicon_info.objects if o.name == target_name), None)
+
+    if object_info is None or target_info is None:
+        logger.warning(f"Object or target not found in ViconInfo: {object_name=}, {target_name=}")
+        return None
+
+    command_dict = {
+        "function_name": function_call.name,
+        "object": object_info.model_dump(),
+        "target": target_info.model_dump(),
+    }
+
     return json.dumps(command_dict)
 
 

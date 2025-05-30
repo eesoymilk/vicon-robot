@@ -58,27 +58,6 @@ class ViconInfo(BaseModel):
                 )
             )
 
-        user = UserInfo(palm_up=True)
+        palm_present = any(object.name.lower() == "palm" for object in objects)
+        user = UserInfo(palm_up=palm_present)
         return ViconInfo(objects=objects, user=user)
-
-
-# example_vicon_info = ViconInfo(
-#     objects=[
-#         ObjectInfo(
-#             name="apple",
-#             inrange=True,
-#             position=(0.596527, 0.047547, 0.27),
-#         ),
-#         ObjectInfo(
-#             name="banana",
-#             inrange=False,
-#             position=(0.596527, 0.047547, 0.27),
-#         ),
-#         ObjectInfo(
-#             name="orange",
-#             inrange=True,
-#             position=(0.596527, 0.047547, 0.27),
-#         ),
-#     ],
-#     User=UserInfo(palm_up=True),
-# )
