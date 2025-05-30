@@ -30,7 +30,7 @@ def setup_logging():
 def command_robot(controller: RobotController, command: Command):
     print(f"=== Function: {command.function_name}, Pos: {command.position} ===")
     if command.function_name == "grab_object":
-        if command.position is None or command.position+ROBOT_BASE_COORDINATE == 0:
+        if command.position is None or np.all(command.position + ROBOT_BASE_COORDINATE == 0):
             print("Command position is None, cannot grab object.")
             return
         controller.grab_object(command.position)

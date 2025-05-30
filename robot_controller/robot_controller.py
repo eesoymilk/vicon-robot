@@ -162,12 +162,12 @@ class RobotController:
         ik_result = self.get_ik_result(lifted_return_pos, target_rot)
         self.robot.move_joint(ik_result["joint"])
 
-        time.sleep(1)
+        time.sleep(0.5)
         ik_result = self.get_ik_result(self.robot_return_pose, self.robot_init_rot)
         self.robot.move_joint(ik_result["joint"])
         self.gripper.set_pos(900)
 
-        time.sleep(1)
+        time.sleep(0.5)
         ik_result = self.get_ik_result(self.robot_init_pose, self.robot_init_rot)
         self.robot.move_joint(ik_result["joint"])
 
