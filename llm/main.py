@@ -90,7 +90,7 @@ def main() -> None:
             [user_prompt],
             model="gpt-4o-mini"
         )
-        if function_call == "noop":
+        if function_call.name == "noop":
             print("No action taken: object not in range or not recognized.")
             continue
         elif function_call.name == "grab_object":
