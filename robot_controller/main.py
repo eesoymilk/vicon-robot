@@ -28,12 +28,21 @@ def setup_logging():
 
 
 def command_robot(controller: RobotController, command: Command):
-    print(f"=== Function: {command.function_name}, Pos: {command.position} ===")
+    # print(f"=== Function: {command.function_name}, Pos: {command.position} ===")
+    # if command.function_name == "grab_object":
+        # if command.position is None or np.all(command.position + ROBOT_BASE_COORDINATE == 0):
+        #     print("Command position is None, cannot grab object.")
+        #     return
+        # controller.grab_object(command.position)
+
+    print(f"=== Function: {command.function_name}, Object: {command.object}, Target: {command.target}")
     if command.function_name == "grab_object":
-        if command.position is None or np.all(command.position + ROBOT_BASE_COORDINATE == 0):
+        object_pos = np.array(command.object["position"])
+        target_pos = np.array(command.target["position"])
+        if object_pos is None or np.all(object_pos + ROBOT_BASE_COORDINATE == 0):
             print("Command position is None, cannot grab object.")
             return
-        controller.grab_object(command.position)
+        controller.grab_object(object_pos, target_pos)
 
 def get_base(redis_client: RedisClient):
     while True:

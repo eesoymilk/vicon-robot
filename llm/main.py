@@ -7,7 +7,7 @@ import numpy as np
 from dotenv import load_dotenv
 from openai.types.chat.chat_completion_message_tool_call import Function
 
-from vicon_info import ViconInfo
+from vicon_info import ViconInfo, ObjectInfo, UserInfo
 from agent import Agent
 from redis_client import RedisClient
 
@@ -73,15 +73,24 @@ def get_system_message(vicon_info: ViconInfo) -> str:
 
 def get_command(vicon_info: ViconInfo, function_call: Function):
     args = json.loads(function_call.arguments)
-    object_name = args.get("object")
-    target_name = args.get("target")
+    object_name = args["object"]
+    target_name = args["target"]
 
     object_info = next((o for o in vicon_info.objects if o.name == object_name), None)
     target_info = next((o for o in vicon_info.objects if o.name == target_name), None)
 
-    if object_info is None or target_info is None:
-        logger.warning(f"Object or target not found in ViconInfo: {object_name=}, {target_name=}")
+    if object_info is None:
+        logger.warning(f"Object {object_name} not found.")
         return None
+
+    if target_info is None:
+        logger.warning(f"Target '{target_name}' not found. Using fallback position.")
+        # Fallback target (e.g., predefined table position)
+        target_info = ObjectInfo(
+            name="Table",
+            inrange=True,
+            position=(0, 0.6, 0.25)  
+        )
 
     command_dict = {
         "function_name": function_call.name,
@@ -118,6 +127,9 @@ def main() -> None:
         elif function_call.name == "grab_object":
             args = json.loads(function_call.arguments)
             print(f"Function call: {function_call.name} with args: {args}")
+        else:
+            print("No valid function call found.")
+            continue
 
         command = get_command(vicon_info, function_call)
         logger.info(f"{command=}")

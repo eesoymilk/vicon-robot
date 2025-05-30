@@ -41,6 +41,8 @@ class Agent:
                                 "description": (
                                     "The name of the target object where the grabbed object "
                                     "should be placed. (eg. 'Palm' for the user's hand)"
+                                    " If the target is not found, "
+                                    " just place a 'None'."
                                 ),
                             }
                         },
@@ -53,7 +55,7 @@ class Agent:
                             },
                             {
                                 "object": "Apple",
-                                "target": "Palm",
+                                "target": "None"
                             },
                         ],
                     },

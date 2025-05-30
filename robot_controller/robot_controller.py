@@ -137,37 +137,40 @@ class RobotController:
 
     def grab_object(
         self,
+        object_pos = robot_init_pose,
+        object_rot = robot_init_rot,
         target_pos = robot_return_pose,
         target_rot = robot_init_rot,
     ):
         """
-        Hard coded grasp sequence for testing purposes. It moves the robot to a
-        hard coded target position, closes the gripper, and then moves back to the
+        Grasp sequence for testing purposes. It moves the robot to a
+        target position, closes the gripper, and then moves back to the
         initial position.
         """
         time.sleep(1)
-        ik_result = self.get_ik_result(target_pos, target_rot)
+
+        ik_result = self.get_ik_result(object_pos, object_rot)
         self.robot.move_joint(ik_result["joint"])
         self.gripper.set_pos(20)
-
         time.sleep(1)
-        lifted_pos = list(target_pos)
-        lifted_pos[2] = lifted_pos[2] + 0.2
-        ik_result = self.get_ik_result(lifted_pos, target_rot)
+
+        lifted_pos = list(object_pos)
+        lifted_pos[2] += 0.2
+        ik_result = self.get_ik_result(lifted_pos, object_rot)
         self.robot.move_joint(ik_result["joint"])
-
         time.sleep(1)
-        lifted_return_pos = list(self.robot_return_pose)
-        lifted_return_pos[2] = lifted_return_pos[2] + 0.1
+
+        lifted_return_pos = list(target_pos)
+        lifted_return_pos[2] += 0.1
         ik_result = self.get_ik_result(lifted_return_pos, target_rot)
         self.robot.move_joint(ik_result["joint"])
-
         time.sleep(0.5)
-        ik_result = self.get_ik_result(self.robot_return_pose, self.robot_init_rot)
+
+        ik_result = self.get_ik_result(target_pos, target_rot)
         self.robot.move_joint(ik_result["joint"])
         self.gripper.set_pos(900)
-
         time.sleep(0.5)
+        
         ik_result = self.get_ik_result(self.robot_init_pose, self.robot_init_rot)
         self.robot.move_joint(ik_result["joint"])
 
