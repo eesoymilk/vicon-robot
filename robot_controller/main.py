@@ -4,8 +4,6 @@ import logging
 import logging.config
 from pathlib import Path
 
-import numpy as np
-
 from command import Command
 from redis_client import RedisClient
 from robot_controller import RobotController
@@ -30,22 +28,6 @@ def command_robot(controller: RobotController, command: Command):
     print(f"=== Function: {command.function_name}, Pos: {command.position} ===")
     if command.function_name == "grab_object":
         controller.grab_object(command.position)
-
-
-def get_base(redis_client: RedisClient):
-    while True:
-        raw_vicon_info = json.loads(redis_client.get_value("vicon_subjects"))
-        base_markers = raw_vicon_info["Base"]
-
-        if all([coord == 0 for coord in base_markers["XYPlane1"][0]]):
-            continue
-
-        robot_base_planes = [
-            np.array(base_markers[f"XYPlane{i}"][0]) for i in range(1, 5)
-        ]
-        robot_base = np.mean(robot_base_planes, axis=0)
-        robot_base[2] = base_markers["Zbase"][0][2]
-        return robot_base
 
 
 def main():
