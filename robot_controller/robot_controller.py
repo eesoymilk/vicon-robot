@@ -183,7 +183,6 @@ class RobotController:
         Auboi5Robot.uninitialize()
         logger.info("------------------------Run end-------------------------")
 
-# just wanna test
 if __name__ == "__main__":
     controller = RobotController()
     controller.start()
