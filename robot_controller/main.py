@@ -37,12 +37,12 @@ def command_robot(controller: RobotController, command: Command):
 
     print(f"=== Function: {command.function_name}, Object: {command.object}, Target: {command.target}")
     if command.function_name == "grab_object":
-        object_pos = np.array(command.object["position"])
-        target_pos = np.array(command.target["position"])
+        object_pos = np.array(command.object.position)
+        target_pos = np.array(command.target.position)
         if object_pos is None or np.all(object_pos + ROBOT_BASE_COORDINATE == 0):
             print("Command position is None, cannot grab object.")
             return
-        controller.grab_object(object_pos, target_pos)
+        controller.grab_object(object_pos = object_pos, target_pos = target_pos)
 
 def get_base(redis_client: RedisClient):
     while True:

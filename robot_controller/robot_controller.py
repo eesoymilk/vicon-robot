@@ -55,11 +55,11 @@ class RobotController:
         self.robot.enable_robot_event()
         self.robot.init_profile()
 
-        joint_maxvelc = (10, 10, 10, 10, 10, 10)
-        joint_maxacc = tuple([17.308779 / 2.5 for _ in range(6)])
+        joint_maxvelc = (5, 5, 5, 5, 5, 5)
+        joint_maxacc = tuple([17.308779 / 5 for _ in range(6)])
         self.robot.set_joint_maxacc(joint_maxacc)
         self.robot.set_joint_maxvelc(joint_maxvelc)
-        # self.robot.set_arrival_ahead_time(0.5)
+        self.robot.set_arrival_ahead_time(0.5)
         # self.robot.set_arrival_ahead_blend(0.05) # try arrival ahead time (0.5)
 
         # Move robot to initial position
@@ -164,13 +164,13 @@ class RobotController:
         lifted_return_pos[2] += 0.1
         ik_result = self.get_ik_result(lifted_return_pos, target_rot)
         self.robot.move_joint(ik_result["joint"])
-        time.sleep(0.5)
+        time.sleep(1)
 
         ik_result = self.get_ik_result(target_pos, target_rot)
         self.robot.move_joint(ik_result["joint"])
         self.gripper.set_pos(900)
-        time.sleep(0.5)
-        
+        time.sleep(1)
+
         ik_result = self.get_ik_result(self.robot_init_pose, self.robot_init_rot)
         self.robot.move_joint(ik_result["joint"])
 
