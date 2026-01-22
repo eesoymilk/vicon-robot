@@ -18,7 +18,7 @@ LOG_DIR.mkdir(exist_ok=True)
 TEST_MODE=True
 REDIS_KEY = "vicon_subjects"
 REDIS_PUB_CHANNEL = "robot_command_channel"
-# TODO: Use this as fallback if the robot base is not found in the vicon data (try-except pattern)
+# TODO: change this
 ROBOT_BASE_COORDINATE = np.array((-0.60834328463, -0.05565796363, 0.03369949684))
 EXPECTED_OBJECTS = ["Cube"]
 
@@ -75,18 +75,21 @@ def main() -> None:
     setup_logging()
     agent = Agent(test_mode=TEST_MODE)
     redis_client = RedisClient()
+    # keys = redis_client.keys("*")
+    # print("Redis keys:", keys)
+
 
     # We get the robot base coordinate from the redis database once before the loop
     # TODO: Discuss whether this should be done in the main loop to get real-time updates
-    robot_base_raw = json.loads(redis_client.get_value("robot_base"))
-    robot_base_coordinate = np.array(robot_base_raw)
+    # robot_base_raw = json.loads(redis_client.get_value("Base"))
+    # robot_base_coordinate = np.array(robot_base_raw)
 
     while True:
         user_prompt = agent.listen_user_prompt()  # blocking call
         redis_value = redis_client.get_value(REDIS_KEY)
         vicon_info = ViconInfo.from_redis_value(
             redis_value,
-            robot_base_coordinate=robot_base_coordinate,
+            robot_base_coordinate=["Base"],
             expected_objects=EXPECTED_OBJECTS,
         )
         system_message = get_system_message(vicon_info)

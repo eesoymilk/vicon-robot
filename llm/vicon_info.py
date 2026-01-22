@@ -45,6 +45,9 @@ class ViconInfo(BaseModel):
                 continue
             logger.info(f"markers {markers}")
             position = np.mean([pos for pos, _ in (markers.values())], axis=0) / 1000
+            print("robot_base_coordinate =", robot_base_coordinate)
+            print("type =", type(robot_base_coordinate))
+
             offset_position = position - robot_base_coordinate
             logger.info(f"ori position {offset_position}")
             offset_position[2] = offset_position[2] + flange_offset

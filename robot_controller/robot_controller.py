@@ -67,7 +67,7 @@ class RobotController:
         #     self.robot_init_pose, self.robot_init_rot
         # )
 
-        while self.robot_base:
+        while not self.robot_base:
             self.vicon_client.get_frame()
             base_markers = self.vicon_client.get_vicon_subject_markers("Base")
 
