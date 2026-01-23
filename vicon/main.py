@@ -25,14 +25,16 @@ def setup_logging():
     logging.config.dictConfig(logging_config)
 
 
-def get_base(redis_client: RedisClient):
+def get_base(vicon_client: ViconClient):
     """
     This function gets the robot base coordinate from the vicon data.
     It is blocking and will keep running until the robot base is found.
     """
     while True:
-        raw_vicon_info = json.loads(redis_client.get_value("vicon_subjects"))
-        base_markers = raw_vicon_info["Base"]
+        vicon_client.get_frame()
+        vicon_subjects = vicon_client.get_all_subject_markers()
+        logger.info(f"{vicon_subjects=}")
+        base_markers = vicon_subjects["Base"]
 
         if all([coord == 0 for coord in base_markers["XYPlane1"][0]]):
             continue
@@ -41,7 +43,7 @@ def get_base(redis_client: RedisClient):
             np.array(base_markers[f"XYPlane{i}"][0]) for i in range(1, 5)
         ]
         robot_base = np.mean(robot_base_planes, axis=0)
-        robot_base[2] = base_markers["Zbase"][0][2]
+        robot_base[2] = base_markers["ZBase1"][0][2]
         return robot_base
 
 
@@ -52,9 +54,9 @@ def main():
 
     # We get the robot base coordinate from the vicon data once before the loop
     # TODO: Discuss whether this should be done in the main loop to get real-time updates
-    robot_base = get_base(redis_client)
+    robot_base = get_base(vicon_client)
     print(f"=== Robot base: {robot_base} ===")
-    redis_client.set_value("robot_base", json.dumps(robot_base))
+    redis_client.set_value("robot_base", json.dumps(list(robot_base)))
 
     while True:
         vicon_client.get_frame()

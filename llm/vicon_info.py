@@ -45,6 +45,7 @@ class ViconInfo(BaseModel):
                 continue
             logger.info(f"markers {markers}")
             position = np.mean([pos for pos, _ in (markers.values())], axis=0) / 1000
+            print(f"{subject_name} position = ", position)
             print("robot_base_coordinate =", robot_base_coordinate)
             print("type =", type(robot_base_coordinate))
 

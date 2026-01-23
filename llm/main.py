@@ -18,7 +18,7 @@ LOG_DIR.mkdir(exist_ok=True)
 TEST_MODE=True
 REDIS_KEY = "vicon_subjects"
 REDIS_PUB_CHANNEL = "robot_command_channel"
-# TODO: change this
+# TODO:THIS IS THE OLD VERSION OF HARDCODED BASE
 ROBOT_BASE_COORDINATE = np.array((-0.60834328463, -0.05565796363, 0.03369949684))
 EXPECTED_OBJECTS = ["Cube"]
 
@@ -75,8 +75,10 @@ def main() -> None:
     setup_logging()
     agent = Agent(test_mode=TEST_MODE)
     redis_client = RedisClient()
-    # keys = redis_client.keys("*")
-    # print("Redis keys:", keys)
+
+    r = redis_client._redis
+    keys = r.keys("*")
+    print("Redis keys:", keys)
 
 
     # We get the robot base coordinate from the redis database once before the loop
@@ -87,6 +89,7 @@ def main() -> None:
     while True:
         user_prompt = agent.listen_user_prompt()  # blocking call
         redis_value = redis_client.get_value(REDIS_KEY)
+        print(redis_value)
         vicon_info = ViconInfo.from_redis_value(
             redis_value,
             robot_base_coordinate=["Base"],
