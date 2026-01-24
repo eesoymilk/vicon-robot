@@ -95,56 +95,114 @@ def watch():
         console.print("\n[yellow]Stopped[/]")
 
 
+def build_display(objects: dict, board_pos: tuple | None, message: str = "") -> Table:
+    """Build the display table."""
+    table = Table(title="Robot Controller", box=None, expand=True)
+    table.add_column("Idx", style="cyan", width=4)
+    table.add_column("Name", style="bold")
+    table.add_column("X", justify="right")
+    table.add_column("Y", justify="right")
+    table.add_column("Z", justify="right")
+
+    for i, (name, pos) in enumerate(objects.items()):
+        table.add_row(f"[{i}]", name, f"{pos[0]:.3f}", f"{pos[1]:.3f}", f"{pos[2]:.3f}")
+
+    return table
+
+
 @app.command()
 def interactive():
-    """Interactive mode - select object by number."""
-    redis = RedisClient()
+    """Interactive mode with live updates."""
+    import threading
+    import sys
+    import select
 
-    while True:
-        console.print("\n" + "=" * 50)
+    redis = RedisClient()
+    running = True
+    message = ""
+    selected_idx: int | None = None
+
+    def get_input():
+        """Non-blocking input check."""
+        if select.select([sys.stdin], [], [], 0.0)[0]:
+            return sys.stdin.readline().strip().lower()
+        return None
+
+    from rich.live import Live
+    from rich.panel import Panel
+    from rich.layout import Layout
+
+    def make_layout():
         objects = redis.get_objects()
         board_pos = redis.get_board_position()
-
-        # Board
-        if board_pos:
-            console.print(f"[green]Board:[/] ({board_pos[0]:.3f}, {board_pos[1]:.3f}, {board_pos[2]:.3f})")
-        else:
-            console.print("[red]Board: NOT DETECTED[/]")
-
-        # Objects
-        if not objects:
-            console.print("[yellow]No objects[/]")
-            input("Enter to refresh...")
-            continue
-
         obj_list = list(objects.items())
-        for i, (name, pos) in enumerate(obj_list):
-            console.print(f"  [cyan][{i}][/] {name}: ({pos[0]:.3f}, {pos[1]:.3f}, {pos[2]:.3f})")
 
-        console.print("[dim]number=grab, r=refresh, q=quit[/]")
-        choice = input("> ").strip().lower()
+        # Board info
+        if board_pos:
+            board_str = f"[green]✓ Board:[/] ({board_pos[0]:.3f}, {board_pos[1]:.3f}, {board_pos[2]:.3f})"
+        else:
+            board_str = "[red]✗ Board: NOT DETECTED[/]"
 
-        if choice == "q":
-            break
-        elif choice == "r":
-            continue
-        elif choice.isdigit():
-            idx = int(choice)
-            if 0 <= idx < len(obj_list):
-                if not board_pos:
-                    console.print("[red]Board not detected![/]")
-                    continue
-                name, pos = obj_list[idx]
-                command = Command(
-                    function_name="grab_object",
-                    name=name,
-                    position=pos,
-                    inrange=True,
-                    return_position=board_pos,
-                )
-                console.print(f"[dim]{command.model_dump_json()}[/]")
-                redis.publish_command(command.model_dump_json())
-                console.print(f"[green]Grabbed {name}[/]")
+        # Objects table
+        if objects:
+            table = Table(box=None, expand=True, show_header=True)
+            table.add_column("", width=4)
+            table.add_column("Name", style="bold")
+            table.add_column("X", justify="right")
+            table.add_column("Y", justify="right")
+            table.add_column("Z", justify="right")
+
+            for i, (name, pos) in enumerate(obj_list):
+                idx_style = "bold cyan" if i == selected_idx else "cyan"
+                table.add_row(f"[{idx_style}][{i}][/]", name, f"{pos[0]:.3f}", f"{pos[1]:.3f}", f"{pos[2]:.3f}")
+            obj_display = table
+        else:
+            obj_display = "[yellow]No objects detected[/]"
+
+        content = f"{board_str}\n\n"
+
+        layout = Layout()
+        layout.split_column(
+            Layout(Panel(f"{board_str}", title="Status"), size=3),
+            Layout(Panel(obj_display, title="Objects")),
+            Layout(Panel(f"{message}\n[dim]number=grab, q=quit[/]", title="Input"), size=4),
+        )
+        return layout, obj_list, board_pos
+
+    console.print("[dim]Starting interactive mode... Type number + Enter to grab, q to quit[/]")
+
+    with Live(make_layout()[0], refresh_per_second=4, console=console) as live:
+        while running:
+            layout, obj_list, board_pos = make_layout()
+            live.update(layout)
+
+            choice = get_input()
+            if choice is None:
+                continue
+
+            if choice == "q":
+                running = False
+                message = "[yellow]Exiting...[/]"
+            elif choice.isdigit():
+                idx = int(choice)
+                if 0 <= idx < len(obj_list):
+                    if not board_pos:
+                        message = "[red]Board not detected![/]"
+                        continue
+                    name, pos = obj_list[idx]
+                    command = Command(
+                        function_name="grab_object",
+                        name=name,
+                        position=pos,
+                        inrange=True,
+                        return_position=board_pos,
+                    )
+                    redis.publish_command(command.model_dump_json())
+                    message = f"[green]Sent grab for {name}[/]"
+                else:
+                    message = f"[red]Invalid index: {idx}[/]"
+            else:
+                message = f"[red]Unknown: {choice}[/]"
 
 
 def main():
