@@ -1,15 +1,11 @@
 import math
 import time
-import queue
 import logging
-import threading
 import numpy as np
-# from vicon.vicon_client import ViconClient
 from aubo_robot.auboi5_robot import (
     Auboi5Robot,
     RobotError,
     RobotErrorType,
-    RobotStatus,
 )
 from pyDHgripper import AG95 as Gripper
 
@@ -26,18 +22,9 @@ class RobotController:
 
     def __init__(self):
         """Initialize the robot controller with Vicon and robot interfaces."""
-        # logger_init()
         self.robot = Auboi5Robot()
         self.gripper = Gripper(port="COM4")
         self.controller_running = False
-        self.robot_moving = False
-        self.gripper_closed = False
-        self.current_target = None
-        self.robot_base = None
-
-    @property
-    def robot_running(self):
-        return self.robot.get_robot_state() == RobotStatus.Running
 
     def initialize_robot(self):
         """Initialize and connect to the robot arm."""
@@ -62,78 +49,12 @@ class RobotController:
         # self.robot.set_arrival_ahead_time(0.5)
         # self.robot.set_arrival_ahead_blend(0.05) # try arrival ahead time (0.5)
 
-        # Move robot to initial position
-        # self.robot.move_to_target_in_cartesian(
-        #     self.robot_init_pose, self.robot_init_rot
-        # )
-
-        while not self.robot_base:
-            self.vicon_client.get_frame()
-            base_markers = self.vicon_client.get_vicon_subject_markers("Base")
-
-            if all([coord == 0 for coord in base_markers["XYPlane1"][0]]):
-                continue
-
-            robot_base_planes = [
-                np.array(base_markers[f"XYPlane{i}"][0]) for i in range(1, 5)
-            ]
-            self.robot_base = np.mean(robot_base_planes, axis=0)
-            self.robot_base[2] = base_markers["Zbase"][0][2]
-
-            print(f"=== ROBOT BASE: {self.robot_base} ===")
-            logger.info(f"Robot base: {self.robot_base}")
 
     def get_ik_result(self, target, rotation):
         ori = self.robot.rpy_to_quaternion([math.radians(i) for i in rotation])
         joint_radian = self.robot.get_current_waypoint()
         ik_result = self.robot.inverse_kin(joint_radian["joint"], target, ori)
         return ik_result
-
-    def robot_mover(self):
-        """Thread function to retrieve targets from queue and move the robot."""
-        while self.controller_running:
-            try:
-                # Retrieve the latest target position
-                self.current_target = self.vicon_queue.get(timeout=1)
-                ik_result = self.get_ik_result(self.current_target, self.robot_init_rot)
-
-                if ik_result is None:
-                    continue
-
-                self.robot_moving = True
-                self.robot.move_joint(ik_result["joint"])
-                self.robot_moving = False
-
-            except queue.Empty:
-                pass
-
-    def start(self):
-        """Start the Vicon reading and robot movement threads."""
-        try:
-            self.controller_running = True
-            self.initialize_robot()
-
-            vicon_thread = threading.Thread(target=self.vicon_reader, daemon=True)
-            robot_thread = threading.Thread(target=self.robot_mover, daemon=True)
-
-            vicon_thread.start()
-            robot_thread.start()
-
-            while self.controller_running:
-                logger.debug(f"Robot State: {self.robot.get_robot_state()}")
-                time.sleep(0.1)
-
-        except KeyboardInterrupt:
-            logger.info("Stopping robot...")
-            self.stop()
-        except RobotError as e:
-            logger.error(f"Robot Event: {e}")
-            self.stop()
-        except ValueError as e:
-            logger.error(f"{e}")
-            self.stop()
-        finally:
-            self.stop()
 
     def grab_object(
         self,
@@ -177,4 +98,4 @@ class RobotController:
 
 if __name__ == "__main__":
     controller = RobotController()
-    controller.start()
+    controller.initialize_robot()
