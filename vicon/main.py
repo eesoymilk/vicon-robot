@@ -37,12 +37,23 @@ def calculate_object_positions(vicon_subjects: dict, robot_base: np.ndarray) -> 
         if subject_name == "Base":
             continue  # Skip the base subject
 
-        # Average all marker positions for this subject
-        positions = [pos for pos, _ in markers.values()]
-        if not positions:
-            continue
-
-        position_mm = np.mean(positions, axis=0)
+        # Handle Board specially: calculate center from Board1-4 markers
+        if subject_name == "Board":
+            board_marker_names = ["Board1", "Board2", "Board3", "Board4"]
+            board_positions = []
+            for marker_name in board_marker_names:
+                if marker_name in markers:
+                    pos, _ = markers[marker_name]
+                    board_positions.append(pos)
+            if len(board_positions) != 4:
+                continue  # Skip if not all Board markers are present
+            position_mm = np.mean(board_positions, axis=0)
+        else:
+            # Average all marker positions for this subject
+            positions = [pos for pos, _ in markers.values()]
+            if not positions:
+                continue
+            position_mm = np.mean(positions, axis=0)
 
         # Convert mm to m and subtract base
         position_m = position_mm / 1000

@@ -60,12 +60,21 @@ class RobotController:
         self,
         target_pos = (0.596527, 0.047547, 0.27),
         target_rot = (178, -0.48, 86),
+        return_pos = None,
     ):
         """
         Hard coded grasp sequence for testing purposes. It moves the robot to a
         hard coded target position, closes the gripper, and then moves back to the
         initial position.
+
+        Args:
+            target_pos: Position to grab object from
+            target_rot: Rotation at target position
+            return_pos: Position to drop object at (defaults to robot_return_pose)
         """
+        if return_pos is None:
+            return_pos = self.robot_return_pose
+
         time.sleep(1)
         ik_result = self.get_ik_result(target_pos, target_rot)
         self.robot.move_joint(ik_result["joint"])
@@ -78,7 +87,7 @@ class RobotController:
         self.robot.move_joint(ik_result["joint"])
 
         time.sleep(1)
-        ik_result = self.get_ik_result(self.robot_return_pose, self.robot_init_rot)
+        ik_result = self.get_ik_result(return_pos, self.robot_init_rot)
         self.robot.move_joint(ik_result["joint"])
         self.gripper.set_pos(900)
 

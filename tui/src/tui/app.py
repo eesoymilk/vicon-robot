@@ -24,8 +24,8 @@ class ObjectItem(ListItem):
 class StatusPanel(Static):
     """Panel showing current status."""
 
-    def __init__(self) -> None:
-        super().__init__("")
+    def __init__(self, id: str | None = None) -> None:
+        super().__init__("", id=id)
         self.update_status("Ready")
 
     def update_status(self, message: str) -> None:
@@ -132,9 +132,15 @@ class ViconTUI(App):
         if not isinstance(item, ObjectItem):
             return
 
+        board_position = self.redis_client.get_board_position()
+        if board_position is None:
+            status.update_status("Error: Board not found in Vicon")
+            return
+
         command = Command(
             function_name="grab_object",
             position=item.position,
+            return_position=board_position,
         )
 
         try:
