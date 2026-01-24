@@ -1,3 +1,5 @@
+import logging
+
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
 from textual.widgets import Header, Footer, Static, ListView, ListItem, Label, Rule
@@ -5,6 +7,14 @@ from textual.binding import Binding
 
 from .command import Command
 from .redis_client import RedisClient
+
+# Debug logging to file
+logging.basicConfig(
+    filename="tui_debug.log",
+    level=logging.DEBUG,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 
 class ObjectItem(ListItem):
@@ -210,6 +220,8 @@ class ViconTUI(App):
         try:
             self.objects = self.redis_client.get_objects()
             board_pos = self.redis_client.get_board_position()
+            logger.debug(f"Objects: {self.objects}")
+            logger.debug(f"Board position: {board_pos}")
 
             list_view = self.query_one("#objects", ListView)
             list_view.clear()
@@ -228,6 +240,7 @@ class ViconTUI(App):
                 status.update_status("Ready", "info")
 
         except Exception as e:
+            logger.exception(f"Redis error: {e}")
             status.update_status(f"Redis error: {e}", "error")
 
     def action_refresh(self) -> None:
@@ -243,19 +256,24 @@ class ViconTUI(App):
 
     def action_grab(self) -> None:
         """Grab the selected object."""
+        logger.info("action_grab called")
         list_view = self.query_one("#objects", ListView)
         status = self.query_one("#status-panel", StatusPanel)
 
         if list_view.highlighted_child is None:
+            logger.warning("No object selected")
             status.update_status("No object selected", "warning")
             return
 
         item = list_view.highlighted_child
         if not isinstance(item, ObjectItem):
+            logger.warning(f"Highlighted child is not ObjectItem: {type(item)}")
             return
 
         board_position = self.redis_client.get_board_position()
+        logger.debug(f"Board position for grab: {board_position}")
         if board_position is None:
+            logger.error("Board not found")
             status.update_status("Board not found - cannot grab", "error")
             return
 
@@ -266,9 +284,11 @@ class ViconTUI(App):
             inrange=True,
             return_position=board_position,
         )
+        logger.info(f"Sending command: {command.model_dump_json()}")
 
         try:
             self.redis_client.publish_command(command.model_dump_json())
             status.update_status(f"Grabbing {item.object_name}...", "success")
         except Exception as e:
+            logger.exception(f"Command failed: {e}")
             status.update_status(f"Command failed: {e}", "error")
