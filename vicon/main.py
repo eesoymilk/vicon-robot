@@ -108,7 +108,7 @@ def main():
     # We get the robot base coordinate from the vicon data once before the loop
     # TODO: Discuss whether this should be done in the main loop to get real-time updates
     robot_base = get_base(vicon_client)
-    print(f"=== Robot base: {robot_base} ===")
+    print(f"=== Robot base (mm): {robot_base} ===")
     redis_client.set_value("robot_base", json.dumps(list(robot_base)))
 
     while True:
