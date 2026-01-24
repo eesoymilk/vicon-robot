@@ -1,8 +1,6 @@
 import json
 import logging
 
-import numpy as np
-import numpy.typing as npt
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -33,36 +31,28 @@ class ViconInfo(BaseModel):
     @staticmethod
     def from_redis_value(
         value: str,
-        robot_base_coordinate: npt.ArrayLike,
         expected_objects: list[str],
     ) -> "ViconInfo":
+        """
+        Create ViconInfo from Redis value.
+        Expects pre-processed object positions from vicon module.
+        """
         value_dict = json.loads(value)
         objects = []
 
-        flange_offset = 0.2
-        for subject_name, markers in value_dict.items():
+        for subject_name, data in value_dict.items():
             if subject_name not in expected_objects:
                 continue
-            logger.info(f"markers {markers}")
-            position = np.mean([pos for pos, _ in (markers.values())], axis=0) / 1000
-            print(f"{subject_name} position = ", position)
-            print("robot_base_coordinate =", robot_base_coordinate)
-            print("type =", type(robot_base_coordinate))
-
-            offset_position = position - robot_base_coordinate
-            logger.info(f"ori position {offset_position}")
-            offset_position[2] = offset_position[2] + flange_offset
-            logger.info(f"position {offset_position}")
 
             objects.append(
                 ObjectInfo(
                     name=subject_name,
-                    inrange=True,
-                    position=tuple(offset_position)
+                    inrange=data.get("inrange", True),
+                    position=tuple(data["position"])
                 )
             )
 
-        user = UserInfo(palm_up=True)
+        user = UserInfo(palm_up=True, inrange=True, hand_position=(0, 0, 0))
         return ViconInfo(objects=objects, user=user)
 
 

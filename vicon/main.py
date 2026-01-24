@@ -14,8 +14,50 @@ LOG_DIR = SCRIPT_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 
 REDIS_KEY = "vicon_subjects"
+REDIS_OBJECTS_KEY = "vicon_objects"
+FLANGE_OFFSET = 0.2  # meters
 
 logger = logging.getLogger(__name__)
+
+
+def calculate_object_positions(vicon_subjects: dict, robot_base: np.ndarray) -> dict:
+    """
+    Calculate object positions relative to robot base.
+
+    Args:
+        vicon_subjects: Raw marker data from Vicon {subject: {marker: (x,y,z,occluded)}}
+        robot_base: Robot base coordinate in mm
+
+    Returns:
+        Dict of {subject_name: {"position": [x, y, z], "inrange": bool}}
+        Positions are in meters, relative to robot base
+    """
+    objects = {}
+    for subject_name, markers in vicon_subjects.items():
+        if subject_name == "Base":
+            continue  # Skip the base subject
+
+        # Average all marker positions for this subject
+        positions = [pos for pos, _ in markers.values()]
+        if not positions:
+            continue
+
+        position_mm = np.mean(positions, axis=0)
+
+        # Convert mm to m and subtract base
+        position_m = position_mm / 1000
+        base_m = robot_base / 1000
+        offset_position = position_m - base_m
+
+        # Add flange offset to Z
+        offset_position[2] += FLANGE_OFFSET
+
+        objects[subject_name] = {
+            "position": list(offset_position),
+            "inrange": True  # Could add range check logic here
+        }
+
+    return objects
 
 
 def setup_logging():
@@ -62,7 +104,14 @@ def main():
         vicon_client.get_frame()
         vicon_subjects = vicon_client.get_all_subject_markers()
         logger.info(f"{vicon_subjects=}")
-        redis_client.set_value(REDIS_KEY, json.dumps(vicon_subjects))
+
+        # Calculate offset positions
+        object_positions = calculate_object_positions(vicon_subjects, robot_base)
+
+        # Publish both raw and processed data
+        redis_client.set_value(REDIS_KEY, json.dumps(vicon_subjects))  # raw
+        redis_client.set_value(REDIS_OBJECTS_KEY, json.dumps(object_positions))  # processed
+
         time.sleep(0.1)
 
 
