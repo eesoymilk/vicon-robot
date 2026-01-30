@@ -26,12 +26,16 @@ def setup_logging():
 
 def command_robot(controller: RobotController, command: Command):
     print(f"=== Function: {command.function_name}, Object: {command.name}, Pos: {command.position} ===")
-    if command.function_name == "grab_object":
-        controller.grab_object(
-            command.position,
-            return_pos=command.return_position,
-            object_name=command.name,
-        )
+    try:
+        if command.function_name == "grab_object":
+            controller.grab_object(
+                command.position,
+                return_pos=command.return_position,
+                object_name=command.name,
+            )
+    except Exception as e:
+        logger.error(f"Command failed: {e}")
+        print(f"=== Command failed: {e} ===")
 
 
 def main():
