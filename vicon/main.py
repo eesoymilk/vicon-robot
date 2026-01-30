@@ -60,9 +60,10 @@ def calculate_object_positions(vicon_subjects: dict, robot_base: np.ndarray) -> 
         base_m = robot_base / 1000
         offset_position = position_m - base_m
 
-        # Add flange offset to Z (only for grab targets, not Board)
-        if subject_name != "Board":
-            offset_position[2] += FLANGE_OFFSET
+        offset_position[2] += FLANGE_OFFSET
+
+        if subject_name == "Board":
+            offset_position[2] += 0.1
 
         objects[subject_name] = {
             "position": list(offset_position),
