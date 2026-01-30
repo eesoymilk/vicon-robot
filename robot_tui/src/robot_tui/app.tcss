@@ -1,0 +1,60 @@
+/* Main application styles for Robot TUI */
+
+Screen {
+    background: #1e1e2e;
+}
+
+Header {
+    background: #3b82f6;
+    color: white;
+    text-style: bold;
+    dock: top;
+    height: 1;
+}
+
+StatusBar {
+    height: 4;
+}
+
+Footer {
+    background: #313244;
+    dock: bottom;
+    height: 1;
+}
+
+Footer > .footer--key {
+    background: #3b82f6;
+    color: white;
+}
+
+DataTable {
+    height: 1fr;
+    min-height: 10;
+}
+
+DataTable > .datatable--header {
+    background: #3b82f6;
+    color: white;
+    text-style: bold;
+}
+
+DataTable > .datatable--cursor {
+    background: #3b82f6;
+    color: white;
+}
+
+DataTable > .datatable--even-row {
+    background: #1e1e2e;
+}
+
+DataTable > .datatable--odd-row {
+    background: #313244;
+}
+
+RichLog {
+    height: 8;
+    background: #313244;
+    border-top: solid #45475a;
+    padding: 0 1;
+    dock: bottom;
+}

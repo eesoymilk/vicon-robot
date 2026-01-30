@@ -27,7 +27,11 @@ def setup_logging():
 def command_robot(controller: RobotController, command: Command):
     print(f"=== Function: {command.function_name}, Object: {command.name}, Pos: {command.position} ===")
     if command.function_name == "grab_object":
-        controller.grab_object(command.position, return_pos=command.return_position)
+        controller.grab_object(
+            command.position,
+            return_pos=command.return_position,
+            object_name=command.name,
+        )
 
 
 def main():
@@ -37,6 +41,10 @@ def main():
     robot_controller = RobotController()
 
     robot_controller.initialize_robot()
+    robot_controller.enable_trajectory_logging(
+        output_dir=LOG_DIR / "trajectories",
+        poll_rate_hz=50.0,  # 50Hz for fine trajectory capture
+    )
     time.sleep(1)
 
     def pubsub_handler(message):

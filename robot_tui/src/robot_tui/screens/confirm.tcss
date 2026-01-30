@@ -1,0 +1,50 @@
+/* Confirmation modal screen styles */
+
+ConfirmGrabScreen {
+    align: center middle;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+#confirm-dialog {
+    width: 50;
+    height: auto;
+    padding: 1 2;
+    background: #313244;
+    border: thick #3b82f6;
+}
+
+#confirm-title {
+    width: 100%;
+    text-align: center;
+    text-style: bold;
+    color: #3b82f6;
+    padding-bottom: 1;
+}
+
+#confirm-object {
+    width: 100%;
+    text-align: center;
+}
+
+#confirm-position {
+    width: 100%;
+    text-align: center;
+    color: #6c7086;
+}
+
+#confirm-question {
+    width: 100%;
+    text-align: center;
+    padding: 1 0;
+}
+
+#button-row {
+    width: 100%;
+    height: auto;
+    align: center middle;
+    padding-top: 1;
+}
+
+#button-row Button {
+    margin: 0 1;
+}

@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Tuple
+from typing import Optional, Tuple
 
 
 class Command(BaseModel):
@@ -12,4 +12,4 @@ class Command(BaseModel):
     name: str
     position: Tuple[float, float, float]
     inrange: bool = True
-    return_position: Tuple[float, float, float] | None = None
+    return_position: Optional[Tuple[float, float, float]] = None
