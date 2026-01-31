@@ -198,8 +198,8 @@ def main() -> None:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path(__file__).resolve().parents[3] / "robot_controller" / "logs" / "trajectories",
-        help="Output directory (default: robot_controller/logs/trajectories)",
+        default=Path(__file__).resolve().parents[3] / "data" / "trajectories",
+        help="Output directory (default: data/trajectories)",
     )
     parser.add_argument("--preview", action="store_true", help="Show live camera preview window")
     parser.add_argument("--redis-host", default="localhost", help="Redis host")

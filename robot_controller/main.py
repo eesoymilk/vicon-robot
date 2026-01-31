@@ -11,6 +11,8 @@ from robot_controller import RobotController
 SCRIPT_DIR = Path(__file__).resolve().parent
 LOG_DIR = SCRIPT_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
+DATA_DIR = SCRIPT_DIR.parent / "data"
+DATA_DIR.mkdir(exist_ok=True)
 
 REDIS_SUB_CHANNEL = "robot_command_channel"
 
@@ -46,7 +48,7 @@ def main():
 
     robot_controller.initialize_robot()
     robot_controller.enable_trajectory_logging(
-        output_dir=LOG_DIR / "trajectories",
+        output_dir=DATA_DIR / "trajectories",
         poll_rate_hz=50.0,  # 50Hz for fine trajectory capture
         event_publisher=redis_client.publish,
     )
