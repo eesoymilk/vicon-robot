@@ -24,6 +24,10 @@ class RedisClient:
         """
         return self._redis.get(key)
 
+    def publish(self, channel, message):
+        """Publish a message to a Redis channel."""
+        self._redis.publish(channel, message)
+
     def subscribe(
         self,
         channel: str,

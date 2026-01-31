@@ -33,16 +33,25 @@ class RobotController:
 
     def enable_trajectory_logging(
         self,
-        output_dir: Path = None,
-        poll_rate_hz: float = 20.0,
+        output_dir=None,
+        poll_rate_hz=20.0,
+        event_publisher=None,
     ):
-        """Enable trajectory logging for grab operations."""
+        """Enable trajectory logging for grab operations.
+
+        Args:
+            output_dir: Directory for saving trajectory CSVs
+            poll_rate_hz: Polling frequency for waypoint sampling
+            event_publisher: Optional callback(channel, data) for publishing
+                trajectory events to Redis for external recorders (e.g. camera)
+        """
         self.trajectory_logger = TrajectoryLogger(
             robot=self.robot,
             output_dir=output_dir,
             poll_rate_hz=poll_rate_hz,
+            event_publisher=event_publisher,
         )
-        logger.info(f"Trajectory logging enabled at {poll_rate_hz}Hz")
+        logger.info("Trajectory logging enabled at %sHz", poll_rate_hz)
 
     def initialize_robot(self):
         """Initialize and connect to the robot arm."""

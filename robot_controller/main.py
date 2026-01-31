@@ -48,6 +48,7 @@ def main():
     robot_controller.enable_trajectory_logging(
         output_dir=LOG_DIR / "trajectories",
         poll_rate_hz=50.0,  # 50Hz for fine trajectory capture
+        event_publisher=redis_client.publish,
     )
     time.sleep(1)
 

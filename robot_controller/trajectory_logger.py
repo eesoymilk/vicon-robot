@@ -8,12 +8,13 @@ Uses async movement (issync=False) with tight polling loop for better sampling.
 """
 
 import csv
+import json
 import time
 import logging
 from pathlib import Path
 from datetime import datetime
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -65,40 +66,57 @@ class TrajectoryLogger:
         'gripper', 'robot_state'
     ]
 
+    EVENTS_CHANNEL = "trajectory_events"
+
     def __init__(
         self,
         robot,  # Auboi5Robot instance
-        output_dir: Path = None,
-        poll_rate_hz: float = 50.0,
+        output_dir=None,  # type: Optional[Path]
+        poll_rate_hz=50.0,  # type: float
+        event_publisher=None,  # type: Optional[Callable[[str, str], None]]
     ):
         """
         Args:
             robot: Auboi5Robot instance with get_current_waypoint() method
             output_dir: Directory for saving trajectory logs
             poll_rate_hz: Polling frequency for waypoint sampling (default 50Hz)
+            event_publisher: Optional callback(channel, json_str) for publishing
+                trajectory events to Redis, used to synchronize external recorders
+                (e.g. camera). Signature: event_publisher(channel: str, data: str)
         """
         self.robot = robot
         self.output_dir = output_dir or Path(__file__).parent / "trajectory_logs"
         self.poll_rate_hz = poll_rate_hz
         self.poll_interval = 1.0 / poll_rate_hz
+        self._event_publisher = event_publisher
 
         # Current recording state
-        self._current_log: Optional[TrajectoryLog] = None
-        self._current_phase: str = ""
-        self._start_time: float = 0.0
-        self._gripper_position: int = 0
+        self._current_log = None  # type: Optional[TrajectoryLog]
+        self._current_phase = ""  # type: str
+        self._start_time = 0.0  # type: float
+        self._gripper_position = 0  # type: int
 
         # Ensure output directory exists
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        logger.info(f"TrajectoryLogger initialized, output_dir={self.output_dir}, poll_rate={poll_rate_hz}Hz")
+        logger.info("TrajectoryLogger initialized, output_dir=%s, poll_rate=%sHz", self.output_dir, poll_rate_hz)
+
+    def _publish_event(self, event_data):
+        # type: (dict) -> None
+        """Publish a trajectory event via the configured publisher."""
+        if self._event_publisher is not None:
+            try:
+                self._event_publisher(self.EVENTS_CHANNEL, json.dumps(event_data))
+            except Exception:
+                logger.warning("Failed to publish trajectory event", exc_info=True)
 
     def start_trajectory(
         self,
-        target_position: Tuple[float, float, float],
-        target_rotation: Tuple[float, float, float],
-        return_position: Tuple[float, float, float],
-        object_name: Optional[str] = None,
-    ) -> str:
+        target_position,  # type: Tuple[float, float, float]
+        target_rotation,  # type: Tuple[float, float, float]
+        return_position,  # type: Tuple[float, float, float]
+        object_name=None,  # type: Optional[str]
+    ):
+        # type: (...) -> str
         """
         Begin recording a new trajectory.
 
@@ -116,7 +134,16 @@ class TrajectoryLogger:
             return_position=return_position,
         )
 
-        logger.info(f"Started trajectory recording: {session_id}, object={object_name}")
+        self._publish_event({
+            "event": "start",
+            "session_id": session_id,
+            "object_name": object_name,
+            "target_position": list(target_position),
+            "return_position": list(return_position),
+            "timestamp": self._start_time,
+        })
+
+        logger.info("Started trajectory recording: %s, object=%s", session_id, object_name)
         return session_id
 
     def record_movement(
@@ -147,7 +174,15 @@ class TrajectoryLogger:
         if gripper_position is not None:
             self._gripper_position = gripper_position
 
-        logger.debug(f"Starting phase: {phase_name}")
+        self._publish_event({
+            "event": "phase",
+            "session_id": self._current_log.session_id,
+            "phase": phase_name,
+            "gripper_position": self._gripper_position,
+            "timestamp": time.time(),
+        })
+
+        logger.debug("Starting phase: %s", phase_name)
 
         # Sample initial position
         self._sample_waypoint()
@@ -190,6 +225,13 @@ class TrajectoryLogger:
 
         self._current_log.success = success
         self._current_log.error_message = error_message
+
+        self._publish_event({
+            "event": "end",
+            "session_id": self._current_log.session_id,
+            "success": success,
+            "timestamp": time.time(),
+        })
 
         # Save to file
         output_path = self._save_trajectory_csv()
