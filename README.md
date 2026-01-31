@@ -104,7 +104,7 @@ conda activate llm
 python main.py
 ```
 
-> ✅ TUI shows a table of tracked objects. Select one and press `g` to grab.
+> ✅ TUI shows a table of tracked objects. Select one and press `Enter` to grab.
 
 ### Shutdown
 

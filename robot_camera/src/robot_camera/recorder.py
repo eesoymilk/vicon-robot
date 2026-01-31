@@ -46,6 +46,7 @@ class FrameRecorder:
         capture_fps: float = 10.0,
         jpeg_quality: int = 95,
         preview: bool = False,
+        preview_width: int = 640,
     ) -> None:
         self.camera = camera
         self.output_dir = output_dir
@@ -53,6 +54,8 @@ class FrameRecorder:
         self.capture_fps = capture_fps
         self.jpeg_quality = jpeg_quality
         self.preview = preview
+        self.preview_width = preview_width
+        self._preview_window_created = False
 
         # Session state
         self._session_id: str | None = None
@@ -155,9 +158,21 @@ class FrameRecorder:
         elif event_type == "end":
             self.end_session()
 
+    def _ensure_preview_window(self) -> None:
+        """Create the preview window once, resizable by dragging."""
+        if not self._preview_window_created:
+            cv2.namedWindow(self.PREVIEW_WINDOW, cv2.WINDOW_NORMAL)
+            cv2.resizeWindow(self.PREVIEW_WINDOW, self.preview_width, int(self.preview_width * 9 / 16))
+            self._preview_window_created = True
+
     def show_preview(self, bgr: np.ndarray) -> None:
         """Show a frame in the preview window with status overlay."""
+        self._ensure_preview_window()
         display = bgr.copy()
+
+        # Scale text to frame size
+        h, w = display.shape[:2]
+        font_scale = w / 900
 
         # Status text
         if self.recording:
@@ -167,7 +182,7 @@ class FrameRecorder:
             status = "IDLE - waiting for trajectory"
             color = (0, 200, 0)  # green
 
-        cv2.putText(display, status, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+        cv2.putText(display, status, (10, int(40 * font_scale)), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color, 2)
         cv2.imshow(self.PREVIEW_WINDOW, display)
 
     def run_capture_loop(self) -> None:
@@ -202,6 +217,7 @@ def main() -> None:
         help="Output directory (default: data/trajectories)",
     )
     parser.add_argument("--preview", action="store_true", help="Show live camera preview window")
+    parser.add_argument("--preview-width", type=int, default=640, help="Preview window width in pixels (default: 640)")
     parser.add_argument("--redis-host", default="localhost", help="Redis host")
     parser.add_argument("--redis-port", type=int, default=6379, help="Redis port")
     args = parser.parse_args()
@@ -220,6 +236,7 @@ def main() -> None:
         capture_fps=args.fps,
         jpeg_quality=args.quality,
         preview=args.preview,
+        preview_width=args.preview_width,
     )
 
     subscriber = RedisSubscriber(host=args.redis_host, port=args.redis_port)
