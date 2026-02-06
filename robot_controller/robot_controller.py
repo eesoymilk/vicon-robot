@@ -1,17 +1,17 @@
 import math
 import time
-import queue
 import logging
-import threading
+from pathlib import Path
+from typing import Optional, Tuple
+
 import numpy as np
-# from vicon.vicon_client import ViconClient
 from aubo_robot.auboi5_robot import (
     Auboi5Robot,
     RobotError,
     RobotErrorType,
-    RobotStatus,
 )
 from pyDHgripper import AG95 as Gripper
+from trajectory_logger import TrajectoryLogger
 
 logger = logging.getLogger(__name__)
 
@@ -26,18 +26,32 @@ class RobotController:
 
     def __init__(self):
         """Initialize the robot controller with Vicon and robot interfaces."""
-        # logger_init()
         self.robot = Auboi5Robot()
         self.gripper = Gripper(port="COM4")
         self.controller_running = False
-        self.robot_moving = False
-        self.gripper_closed = False
-        self.current_target = None
-        self.robot_base = None
+        self.trajectory_logger: Optional[TrajectoryLogger] = None
 
-    @property
-    def robot_running(self):
-        return self.robot.get_robot_state() == RobotStatus.Running
+    def enable_trajectory_logging(
+        self,
+        output_dir=None,
+        poll_rate_hz=20.0,
+        event_publisher=None,
+    ):
+        """Enable trajectory logging for grab operations.
+
+        Args:
+            output_dir: Directory for saving trajectory CSVs
+            poll_rate_hz: Polling frequency for waypoint sampling
+            event_publisher: Optional callback(channel, data) for publishing
+                trajectory events to Redis for external recorders (e.g. camera)
+        """
+        self.trajectory_logger = TrajectoryLogger(
+            robot=self.robot,
+            output_dir=output_dir,
+            poll_rate_hz=poll_rate_hz,
+            event_publisher=event_publisher,
+        )
+        logger.info("Trajectory logging enabled at %sHz", poll_rate_hz)
 
     def initialize_robot(self):
         """Initialize and connect to the robot arm."""
@@ -62,108 +76,83 @@ class RobotController:
         # self.robot.set_arrival_ahead_time(0.5)
         # self.robot.set_arrival_ahead_blend(0.05) # try arrival ahead time (0.5)
 
-        # Move robot to initial position
-        # self.robot.move_to_target_in_cartesian(
-        #     self.robot_init_pose, self.robot_init_rot
-        # )
-
-        while self.robot_base:
-            self.vicon_client.get_frame()
-            base_markers = self.vicon_client.get_vicon_subject_markers("Base")
-
-            if all([coord == 0 for coord in base_markers["XYPlane1"][0]]):
-                continue
-
-            robot_base_planes = [
-                np.array(base_markers[f"XYPlane{i}"][0]) for i in range(1, 5)
-            ]
-            self.robot_base = np.mean(robot_base_planes, axis=0)
-            self.robot_base[2] = base_markers["Zbase"][0][2]
-
-            print(f"=== ROBOT BASE: {self.robot_base} ===")
-            logger.info(f"Robot base: {self.robot_base}")
 
     def get_ik_result(self, target, rotation):
         ori = self.robot.rpy_to_quaternion([math.radians(i) for i in rotation])
         joint_radian = self.robot.get_current_waypoint()
         ik_result = self.robot.inverse_kin(joint_radian["joint"], target, ori)
+        if ik_result is None:
+            raise RuntimeError(f"IK solver failed for target={target}, rotation={rotation}")
         return ik_result
-
-    def robot_mover(self):
-        """Thread function to retrieve targets from queue and move the robot."""
-        while self.controller_running:
-            try:
-                # Retrieve the latest target position
-                self.current_target = self.vicon_queue.get(timeout=1)
-                ik_result = self.get_ik_result(self.current_target, self.robot_init_rot)
-
-                if ik_result is None:
-                    continue
-
-                self.robot_moving = True
-                self.robot.move_joint(ik_result["joint"])
-                self.robot_moving = False
-
-            except queue.Empty:
-                pass
-
-    def start(self):
-        """Start the Vicon reading and robot movement threads."""
-        try:
-            self.controller_running = True
-            self.initialize_robot()
-
-            vicon_thread = threading.Thread(target=self.vicon_reader, daemon=True)
-            robot_thread = threading.Thread(target=self.robot_mover, daemon=True)
-
-            vicon_thread.start()
-            robot_thread.start()
-
-            while self.controller_running:
-                logger.debug(f"Robot State: {self.robot.get_robot_state()}")
-                time.sleep(0.1)
-
-        except KeyboardInterrupt:
-            logger.info("Stopping robot...")
-            self.stop()
-        except RobotError as e:
-            logger.error(f"Robot Event: {e}")
-            self.stop()
-        except ValueError as e:
-            logger.error(f"{e}")
-            self.stop()
-        finally:
-            self.stop()
 
     def grab_object(
         self,
-        target_pos = (0.596527, 0.047547, 0.27),
-        target_rot = (178, -0.48, 86),
+        target_pos: Tuple[float, float, float] = (0.596527, 0.047547, 0.27),
+        target_rot: Tuple[float, float, float] = (178, -0.48, 86),
+        return_pos: Tuple[float, float, float] = None,
+        object_name: Optional[str] = None,
     ):
         """
-        Hard coded grasp sequence for testing purposes. It moves the robot to a
-        hard coded target position, closes the gripper, and then moves back to the
-        initial position.
+        Grasp sequence that moves the robot to grab an object and return it.
+
+        Args:
+            target_pos: Position to grab object from
+            target_rot: Rotation at target position
+            return_pos: Position to drop object at (defaults to robot_return_pose)
+            object_name: Name of the object being grabbed (for trajectory logging)
         """
-        time.sleep(1)
-        ik_result = self.get_ik_result(target_pos, target_rot)
-        self.robot.move_joint(ik_result["joint"])
-        self.gripper.set_pos(20)
+        if return_pos is None:
+            return_pos = self.robot_return_pose
 
-        time.sleep(1)
-        lifted_pos = list(target_pos)
-        lifted_pos[2] = lifted_pos[2] + 0.1
-        ik_result = self.get_ik_result(lifted_pos, target_rot)
-        self.robot.move_joint(ik_result["joint"])
+        # Start trajectory logging if enabled
+        tl = self.trajectory_logger
+        if tl:
+            tl.start_trajectory(target_pos, target_rot, return_pos, object_name)
 
-        time.sleep(1)
-        ik_result = self.get_ik_result(self.robot_return_pose, self.robot_init_rot)
-        self.robot.move_joint(ik_result["joint"])
-        self.gripper.set_pos(900)
+        try:
+            # Phase 1: Approach with open gripper, close after arrival
+            time.sleep(1)
+            ik_result = self.get_ik_result(target_pos, target_rot)
+            if tl:
+                tl.record_movement(ik_result["joint"], "move_to_grab", gripper_position=900)
+            else:
+                self.robot.move_joint(ik_result["joint"])
+            self.gripper.set_pos(20)
 
-        time.sleep(1)
-        ik_result = self.get_ik_result(self.robot_init_pose, self.robot_init_rot)
-        self.robot.move_joint(ik_result["joint"])
+            # Phase 2: Lift with closed gripper
+            time.sleep(1)
+            lifted_pos = list(target_pos)
+            lifted_pos[2] = lifted_pos[2] + 0.1
+            ik_result = self.get_ik_result(lifted_pos, target_rot)
+            if tl:
+                tl.record_movement(ik_result["joint"], "lift_object", gripper_position=20)
+            else:
+                self.robot.move_joint(ik_result["joint"])
+
+            # Phase 3: Move to return with closed gripper, open after arrival
+            time.sleep(1)
+            ik_result = self.get_ik_result(return_pos, self.robot_init_rot)
+            if tl:
+                tl.record_movement(ik_result["joint"], "move_to_return", gripper_position=20)
+            else:
+                self.robot.move_joint(ik_result["joint"])
+            self.gripper.set_pos(900)
+
+            # Phase 4: Return home with open gripper
+            time.sleep(1)
+            ik_result = self.get_ik_result(self.robot_init_pose, self.robot_init_rot)
+            if tl:
+                tl.record_movement(ik_result["joint"], "return_home", gripper_position=900)
+            else:
+                self.robot.move_joint(ik_result["joint"])
+
+            if tl:
+                tl.end_trajectory(success=True)
+
+        except Exception as e:
+            if tl:
+                tl.end_trajectory(success=False, error_message=str(e))
+            raise
 
     def stop(self):
         """Stop the robot controller."""
@@ -177,4 +166,4 @@ class RobotController:
 
 if __name__ == "__main__":
     controller = RobotController()
-    controller.start()
+    controller.initialize_robot()

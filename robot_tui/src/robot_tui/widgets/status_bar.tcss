@@ -1,0 +1,22 @@
+/* Status bar widget styles */
+
+StatusBar {
+    width: 100%;
+    height: 3;
+    background: #313244;
+    border-bottom: solid #45475a;
+    layout: horizontal;
+    padding: 0 2;
+}
+
+StatusBar > #redis-status {
+    width: 1fr;
+    height: 100%;
+    content-align: center left;
+}
+
+StatusBar > #board-status {
+    width: 2fr;
+    height: 100%;
+    content-align: center right;
+}

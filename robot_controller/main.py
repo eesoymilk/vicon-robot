@@ -4,8 +4,6 @@ import logging
 import logging.config
 from pathlib import Path
 
-import numpy as np
-
 from command import Command
 from redis_client import RedisClient
 from robot_controller import RobotController
@@ -13,6 +11,8 @@ from robot_controller import RobotController
 SCRIPT_DIR = Path(__file__).resolve().parent
 LOG_DIR = SCRIPT_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
+DATA_DIR = SCRIPT_DIR.parent / "data"
+DATA_DIR.mkdir(exist_ok=True)
 
 REDIS_SUB_CHANNEL = "robot_command_channel"
 
@@ -27,25 +27,17 @@ def setup_logging():
 
 
 def command_robot(controller: RobotController, command: Command):
-    print(f"=== Function: {command.function_name}, Pos: {command.position} ===")
-    if command.function_name == "grab_object":
-        controller.grab_object(command.position)
-
-
-def get_base(redis_client: RedisClient):
-    while True:
-        raw_vicon_info = json.loads(redis_client.get_value("vicon_subjects"))
-        base_markers = raw_vicon_info["Base"]
-
-        if all([coord == 0 for coord in base_markers["XYPlane1"][0]]):
-            continue
-
-        robot_base_planes = [
-            np.array(base_markers[f"XYPlane{i}"][0]) for i in range(1, 5)
-        ]
-        robot_base = np.mean(robot_base_planes, axis=0)
-        robot_base[2] = base_markers["Zbase"][0][2]
-        return robot_base
+    print(f"=== Function: {command.function_name}, Object: {command.name}, Pos: {command.position} ===")
+    try:
+        if command.function_name == "grab_object":
+            controller.grab_object(
+                command.position,
+                return_pos=command.return_position,
+                object_name=command.name,
+            )
+    except Exception as e:
+        logger.error(f"Command failed: {e}")
+        print(f"=== Command failed: {e} ===")
 
 
 def main():
@@ -55,6 +47,11 @@ def main():
     robot_controller = RobotController()
 
     robot_controller.initialize_robot()
+    robot_controller.enable_trajectory_logging(
+        output_dir=DATA_DIR / "trajectories",
+        poll_rate_hz=50.0,  # 50Hz for fine trajectory capture
+        event_publisher=redis_client.publish,
+    )
     time.sleep(1)
 
     def pubsub_handler(message):

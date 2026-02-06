@@ -3,7 +3,6 @@ import logging
 import logging.config
 from pathlib import Path
 
-import numpy as np
 from dotenv import load_dotenv
 from openai.types.chat.chat_completion_message_tool_call import Function
 
@@ -16,10 +15,8 @@ LOG_DIR = SCRIPT_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 
 TEST_MODE=True
-REDIS_KEY = "vicon_subjects"
+REDIS_KEY = "vicon_objects"
 REDIS_PUB_CHANNEL = "robot_command_channel"
-# TODO: Use the actual robot base coordinate
-ROBOT_BASE_COORDINATE = np.array((-0.60834328463, -0.05565796363, 0.03369949684))
 EXPECTED_OBJECTS = ["Cube"]
 
 logger = logging.getLogger(__name__)
@@ -76,12 +73,16 @@ def main() -> None:
     agent = Agent(test_mode=TEST_MODE)
     redis_client = RedisClient()
 
+    r = redis_client._redis
+    keys = r.keys("*")
+    print("Redis keys:", keys)
+
     while True:
         user_prompt = agent.listen_user_prompt()  # blocking call
         redis_value = redis_client.get_value(REDIS_KEY)
+        print(redis_value)
         vicon_info = ViconInfo.from_redis_value(
             redis_value,
-            robot_base_coordinate=ROBOT_BASE_COORDINATE,
             expected_objects=EXPECTED_OBJECTS,
         )
         system_message = get_system_message(vicon_info)

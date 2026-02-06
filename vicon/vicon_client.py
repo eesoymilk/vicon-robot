@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 class ViconClient:
     _instance = None
     _host = "localhost:801"
+    host = "localhost:801"
 
     def __new__(cls):
         if cls._instance is None:
@@ -27,7 +28,12 @@ class ViconClient:
 
     def initialize(self):
         try:
-            self.client.Connect(self._host)
+            while not self.client.IsConnected():
+                logger.info(f"Connecting to {self._host}...")
+                self.client.Connect(self._host)
+                time.sleep(0.2)
+
+            logger.info(f"Connected to {self._host}...")
 
             # Check the version
             logger.info(f"Version: {self.client.GetVersion()}")
